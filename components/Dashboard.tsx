@@ -6,11 +6,13 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface DashboardProps {
   projects: ProjectMaster[];
   publications: PublicationOutput[];
+  onSeedData?: () => void;
+  isSeeding?: boolean;
 }
 
 const COLORS = ['#22c55e', '#facc15', '#FFBB28', '#FF8042', '#8884d8']; // Modified to match Green/Yellow theme
 
-const Dashboard: React.FC<DashboardProps> = ({ projects, publications }) => {
+const Dashboard: React.FC<DashboardProps> = ({ projects, publications, onSeedData, isSeeding }) => {
   const { t } = useLanguage();
 
   // 1. Success Rate by Cohort (Funding Year)
@@ -56,6 +58,39 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications }) => {
     });
     return Object.keys(statusCounts).map(key => ({ name: key, value: statusCounts[key] }));
   }, [projects]);
+
+  // --- EMPTY STATE ---
+  if (projects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl shadow-sm border border-gray-100 text-center p-6">
+        <div className="bg-tnsu-green-50 p-6 rounded-full mb-6">
+          <span className="material-icons text-6xl text-tnsu-green-600">dataset</span>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">No Data Available</h2>
+        <p className="text-gray-500 mb-8 max-w-md">The database is currently empty. You can start by adding a new project manually, or load our sample dataset to see the dashboard in action.</p>
+        
+        {onSeedData && (
+          <button 
+            onClick={onSeedData}
+            disabled={isSeeding}
+            className="px-8 py-3 bg-tnsu-green-600 text-white rounded-xl hover:bg-tnsu-green-700 shadow-lg shadow-tnsu-green-200 transition-all transform hover:-translate-y-1 flex items-center font-bold disabled:opacity-50"
+          >
+            {isSeeding ? (
+              <>
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></span>
+                Loading Data...
+              </>
+            ) : (
+              <>
+                <span className="material-icons mr-2">cloud_download</span>
+                Load Demo Data
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 font-sans">

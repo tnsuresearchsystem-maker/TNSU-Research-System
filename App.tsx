@@ -1,45 +1,118 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import ProjectForm from './components/ProjectForm';
 import PublicationForm from './components/PublicationForm';
 import Chatbot from './components/Chatbot';
 import Login from './components/Login';
-import { initialProjects, initialPublications } from './services/mockData';
 import { ProjectMaster, PublicationOutput } from './types';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { getProjectsFromDB, getPublicationsFromDB, addProjectToDB, addPublicationToDB, seedDatabase } from './services/dbService';
+import { initialProjects, initialPublications } from './services/mockData';
 
 function AppContent() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [projects, setProjects] = useState<ProjectMaster[]>(initialProjects);
-  const [publications, setPublications] = useState<PublicationOutput[]>(initialPublications);
+  const [projects, setProjects] = useState<ProjectMaster[]>([]);
+  const [publications, setPublications] = useState<PublicationOutput[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSeeding, setIsSeeding] = useState(false);
   
   // Views control
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showPubForm, setShowPubForm] = useState(false);
+
+  // Fetch Data function
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [fetchedProjects, fetchedPubs] = await Promise.all([
+        getProjectsFromDB(),
+        getPublicationsFromDB()
+      ]);
+      setProjects(fetchedProjects);
+      setPublications(fetchedPubs);
+    } catch (error) {
+      console.error("Failed to load data", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch Data from Firebase on Load
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   // If no user is logged in, show Login
   if (!user) {
     return <Login />;
   }
 
-  const handleAddProject = (newProject: ProjectMaster) => {
-    setProjects(prev => [...prev, newProject]);
-    setShowProjectForm(false);
+  const handleAddProject = async (newProject: ProjectMaster) => {
+    try {
+      // Optimistic Update
+      setProjects(prev => [...prev, newProject]);
+      setShowProjectForm(false);
+      
+      // Save to DB
+      await addProjectToDB(newProject);
+    } catch (error) {
+      alert("Error saving project to database. Please check console.");
+      // Rollback if needed (simplified here)
+    }
   };
 
-  const handleAddPublication = (newPub: PublicationOutput) => {
-    setPublications(prev => [...prev, newPub]);
-    setShowPubForm(false);
+  const handleAddPublication = async (newPub: PublicationOutput) => {
+    try {
+      // Optimistic Update
+      setPublications(prev => [...prev, newPub]);
+      setShowPubForm(false);
+      
+      // Save to DB
+      await addPublicationToDB(newPub);
+    } catch (error) {
+      alert("Error saving publication to database.");
+    }
+  };
+
+  const handleSeedData = async () => {
+    if (confirm("This will add sample data to your Firestore database. Continue?")) {
+      setIsSeeding(true);
+      try {
+        await seedDatabase(initialProjects, initialPublications);
+        await fetchData(); // Reload data
+      } catch (e) {
+        alert("Error seeding data");
+      } finally {
+        setIsSeeding(false);
+      }
+    }
   };
 
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-tnsu-green-600"></div>
+        </div>
+      );
+    }
+
     if (activeTab === 'dashboard') {
-      return <Dashboard projects={projects} publications={publications} />;
+      return (
+        <Dashboard 
+          projects={projects} 
+          publications={publications} 
+          onSeedData={handleSeedData}
+          isSeeding={isSeeding}
+        />
+      );
     }
 
     if (activeTab === 'projects') {
