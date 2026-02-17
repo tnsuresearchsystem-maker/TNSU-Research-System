@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ProjectMaster, PublicationOutput, FiscalYear, PublicationLevel, PublicationType } from '../types';
 import { FISCAL_YEARS, PUBLICATION_LEVELS, PUBLICATION_TYPES } from '../constants';
@@ -18,10 +19,11 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     output_reporting_year: FiscalYear.Y2568,
     is_published: true,
     publication_level: PublicationLevel.National,
-    publication_type: PublicationType.Journal
+    publication_type: PublicationType.TCI1
   });
 
   const [searchProject, setSearchProject] = useState("");
+  const [fileName, setFileName] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,13 +33,20 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     }
     const newPub: PublicationOutput = {
       output_id: `o_${Math.random().toString(36).substr(2, 6)}`,
-      ...formData as PublicationOutput
+      ...formData as PublicationOutput,
+      file_url: fileName
     };
     onAddPublication(newPub);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFileName(e.target.files[0].name);
+    }
   };
 
   // Logic to show projects from past years
@@ -171,6 +180,26 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
           <select name="publication_level" value={formData.publication_level} onChange={handleChange} className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-tnsu-green-500 focus:border-tnsu-green-500">
             {PUBLICATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
+        </div>
+
+        {/* File Upload Simulation */}
+        <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadCert')}</label>
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors">
+              <div className="space-y-1 text-center">
+                <span className="material-icons text-gray-400 text-3xl">upload_file</span>
+                <div className="flex text-sm text-gray-600 justify-center">
+                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-tnsu-green-600 hover:text-tnsu-green-500 focus-within:outline-none">
+                    <span>Choose File</span>
+                    <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".pdf,.png,.jpg" onChange={handleFileChange} />
+                  </label>
+                  <p className="pl-1">or drag and drop</p>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {fileName ? <span className="font-bold text-tnsu-green-700">{fileName}</span> : "Article Front Page (PDF/IMG)"}
+                </p>
+              </div>
+            </div>
         </div>
         
         {/* Buttons */}

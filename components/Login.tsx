@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { OrganizationType } from '../types';
-import { CAMPUSES, SPORTS_SCHOOLS, CENTRAL_OFFICE } from '../constants';
+import { CAMPUSES, SPORTS_SCHOOLS, CENTRAL_OFFICE, LOGO_URL } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,6 +12,9 @@ const Login: React.FC = () => {
   const [orgType, setOrgType] = useState<OrganizationType | ''>('');
   const [selectedOrgId, setSelectedOrgId] = useState('');
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const getOrgList = () => {
     switch (orgType) {
@@ -21,12 +25,21 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    
     const orgList = getOrgList();
     const org = orgList.find(o => o.id === selectedOrgId);
-    if (org && username) {
-      login(username, org);
+    
+    if (org && username && password) {
+      setLoading(true);
+      const success = await login(username, password, org);
+      setLoading(false);
+      
+      if (!success) {
+        setError(t('loginError'));
+      }
     }
   };
 
@@ -52,8 +65,8 @@ const Login: React.FC = () => {
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-tnsu-green-600 to-tnsu-yellow-400"></div>
           
           <div className="text-center mb-10">
-            <div className="w-20 h-20 bg-tnsu-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-tnsu-green-700 shadow-inner">
-               <span className="material-icons text-5xl">school</span>
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md p-3 border-4 border-tnsu-green-50">
+               <img src={LOGO_URL} alt="TNSU Logo" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-2xl font-bold text-tnsu-green-900">{t('appTitle')}</h1>
             <p className="text-tnsu-green-600 text-sm mt-1">{t('appSubtitle')}</p>
@@ -119,18 +132,37 @@ const Login: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-tnsu-green-400 focus:border-transparent outline-none transition-all text-gray-700 placeholder-gray-400"
-                  placeholder="Admin / Staff Name"
+                  placeholder="admin"
                   required
                 />
                 <span className="material-icons absolute left-3 top-3.5 text-gray-400">person</span>
               </div>
             </div>
 
+            {/* 4. Password */}
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-gray-700">{t('password')}</label>
+              <div className="relative">
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pl-10 focus:ring-2 focus:ring-tnsu-green-400 focus:border-transparent outline-none transition-all text-gray-700 placeholder-gray-400"
+                  placeholder="••••••••"
+                  required
+                />
+                <span className="material-icons absolute left-3 top-3.5 text-gray-400">lock</span>
+              </div>
+            </div>
+
+            {error && <div className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded-lg">{error}</div>}
+
             <button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-tnsu-green-600 to-tnsu-green-500 hover:from-tnsu-green-700 hover:to-tnsu-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-tnsu-green-200 hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-tnsu-green-600 to-tnsu-green-500 hover:from-tnsu-green-700 hover:to-tnsu-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-tnsu-green-200 hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {t('loginButton')}
+              {loading ? <span className="animate-pulse">Checking...</span> : t('loginButton')}
             </button>
           </form>
        </div>

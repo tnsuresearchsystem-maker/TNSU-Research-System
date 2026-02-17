@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { LOGO_URL } from '../constants';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,7 +18,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'dashboard', label: t('dashboard'), icon: 'dashboard' },
     { id: 'projects', label: t('projects'), icon: 'folder_open' },
     { id: 'publications', label: t('publications'), icon: 'article' },
+    { id: 'personnel', label: t('personnel'), icon: 'badge' },
+    { id: 'utilization', label: t('utilization'), icon: 'handshake' },
+    { id: 'ip_mou', label: t('ip_mou'), icon: 'copyright' },
   ];
+
+  // Add User Management tab only for Admins
+  if (user?.role === 'Admin') {
+    tabs.push({ id: 'users', label: t('users'), icon: 'manage_accounts' });
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -27,8 +37,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
         <div className="container mx-auto px-6 py-4 flex items-center justify-between relative z-10">
           <div className="flex items-center space-x-4">
-            <div className="bg-white p-2 rounded-full shadow-md">
-              <span className="material-icons text-3xl text-tnsu-green-700">school</span>
+            <div className="bg-white p-1 rounded-full shadow-md">
+               <img src={LOGO_URL} alt="TNSU Logo" className="w-10 h-10 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">{t('appTitle')}</h1>
@@ -55,7 +65,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
              {/* User Profile */}
              <div className="text-right hidden md:block border-r border-tnsu-green-600 pr-6">
-                <div className="text-sm font-bold text-white">{user?.username}</div>
+                <div className="text-sm font-bold text-white flex items-center justify-end">
+                   {user?.username}
+                   <span className="ml-2 px-1.5 py-0.5 bg-tnsu-yellow-500 text-tnsu-green-900 text-[10px] rounded uppercase font-bold">{user?.role}</span>
+                </div>
                 <div className="text-xs text-tnsu-yellow-400 font-medium">
                   {language === 'th' ? user?.organization.nameTh : user?.organization.nameEn}
                 </div>

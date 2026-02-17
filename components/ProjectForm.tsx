@@ -5,11 +5,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 
 interface ProjectFormProps {
-  onAddProject: (project: ProjectMaster) => void;
+  onSave: (project: ProjectMaster) => void;
   onCancel: () => void;
+  initialData?: ProjectMaster | null;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ onAddProject, onCancel }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData }) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   
@@ -18,18 +19,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onAddProject, onCancel }) => 
     status: ProjectStatus.Ongoing,
     funding_source: FundingSource.Internal,
     research_category: ResearchCategory.SportsScience,
-    // Default to user's organization
+    // Default to user's organization if adding new
     campus_id: user?.organization.nameEn || '' 
   });
 
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newProject: ProjectMaster = {
-      project_id: `p_${Math.random().toString(36).substr(2, 6)}`,
+    const projectToSave: ProjectMaster = {
+      // Keep existing ID if editing, otherwise generate new one
+      project_id: initialData?.project_id || `p_${Math.random().toString(36).substr(2, 6)}`,
       ...formData as ProjectMaster,
       budget_amount: Number(formData.budget_amount)
     };
-    onAddProject(newProject);
+    onSave(projectToSave);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -37,14 +45,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onAddProject, onCancel }) => 
   };
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+    <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 animate-fade-in-up">
       <h2 className="text-2xl font-bold text-tnsu-green-800 mb-6 flex items-center">
-        <span className="material-icons mr-2">add_circle</span>
-        {t('addProject')}
+        <span className="material-icons mr-2">{initialData ? 'edit' : 'add_circle'}</span>
+        {initialData ? t('editProject') : t('addProject')}
       </h2>
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* Project ID (Read-only if editing) */}
+        {initialData && (
+          <div className="col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2">
+            <p className="text-xs text-gray-500 uppercase font-bold">Project ID</p>
+            <p className="text-gray-700 font-mono">{initialData.project_id}</p>
+          </div>
+        )}
+
         {/* Funding Year */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('fundingYear')}</label>

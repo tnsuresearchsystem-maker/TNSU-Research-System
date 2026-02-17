@@ -1,4 +1,5 @@
-import { FiscalYear, FundingSource, ProjectStatus, ResearchCategory, PublicationLevel, PublicationType, OrganizationType, Organization } from "./types";
+
+import { FiscalYear, FundingSource, ProjectStatus, ResearchCategory, PublicationLevel, PublicationType, OrganizationType, Organization, UtilizationType, DevelopmentType, IPType } from "./types";
 
 export const FISCAL_YEARS = Object.values(FiscalYear);
 export const FUNDING_SOURCES = Object.values(FundingSource);
@@ -6,6 +7,9 @@ export const PROJECT_STATUSES = Object.values(ProjectStatus);
 export const RESEARCH_CATEGORIES = Object.values(ResearchCategory);
 export const PUBLICATION_LEVELS = Object.values(PublicationLevel);
 export const PUBLICATION_TYPES = Object.values(PublicationType);
+export const UTILIZATION_TYPES = Object.values(UtilizationType);
+export const DEVELOPMENT_TYPES = Object.values(DevelopmentType);
+export const IP_TYPES = Object.values(IPType);
 
 // --- ORGANIZATIONS DATA ---
 
@@ -49,14 +53,16 @@ export const SPORTS_SCHOOLS: Organization[] = [
   { id: "s_yala", nameEn: "Yala Sports School", nameTh: "โรงเรียนกีฬาจังหวัดยะลา", type: OrganizationType.SportsSchool },
 ];
 
-// Faculty data is kept for historical record/display but removed from login as per new requirement
 export const FACULTIES: Organization[] = [
-  { id: "f_sci", nameEn: "Faculty of Sports Science and Health", nameTh: "คณะวิทยาศาสตร์การกีฬาและสุขภาพ", type: OrganizationType.Campus }, // Fallback type
+  { id: "f_sci", nameEn: "Faculty of Sports Science and Health", nameTh: "คณะวิทยาศาสตร์การกีฬาและสุขภาพ", type: OrganizationType.Campus }, 
   { id: "f_arts", nameEn: "Faculty of Liberal Arts", nameTh: "คณะศิลปศาสตร์", type: OrganizationType.Campus },
   { id: "f_edu", nameEn: "Faculty of Education", nameTh: "คณะศึกษาศาสตร์", type: OrganizationType.Campus },
 ];
 
 export const ALL_ORGANIZATIONS = [...CENTRAL_OFFICE, ...CAMPUSES, ...SPORTS_SCHOOLS, ...FACULTIES];
+
+// --- APP CONSTANTS ---
+export const LOGO_URL = "https://lh3.googleusercontent.com/d/1cRjmEPgytoyDLRYvoegnN3OaqrayaF-c";
 
 // --- TRANSLATIONS ---
 
@@ -69,16 +75,30 @@ export const TRANSLATIONS = {
     selectType: "Select Organization Type",
     selectOrg: "Select Organization",
     enterName: "Enter Username",
+    enterPass: "Enter Password",
     loginButton: "Login",
     logout: "Logout",
     dashboard: "Dashboard",
     projects: "Projects Master",
     publications: "Publications",
+    personnel: "Personnel Dev",
+    utilization: "Utilization",
+    ip_mou: "IP & MOU",
+    users: "User Management",
     totalProjects: "Total Projects",
     totalPubs: "Total Publications",
     successRate: "Avg. Success Rate",
     addProject: "New Project",
+    editProject: "Edit Project",
+    edit: "Edit",
+    delete: "Delete",
     addPub: "Add Publication",
+    addUtil: "Add Utilization",
+    addPersonnel: "Add Personnel Dev",
+    addUser: "Add User",
+    editUser: "Edit User",
+    editUtil: "Edit Utilization",
+    editPersonnel: "Edit Personnel Dev",
     fiscalYear: "Fiscal Year",
     status: "Status",
     project: "Project",
@@ -102,10 +122,52 @@ export const TRANSLATIONS = {
     title: "Article Title",
     type: "Type",
     level: "Level",
-    searchPlaceholder: "Search Project Name, ID, or Researcher...",
+    searchPlaceholder: "Search...",
     chatTitle: "TNSU AI Analyst",
     chatSubtitle: "Powered by Gemini 3 Pro",
     chatPlaceholder: "Ask about data trends...",
+    projectDetails: "Project Details",
+    backToList: "Back to List",
+    noPubs: "No publications linked to this project.",
+    noUtils: "No utilization records found.",
+    utilType: "Utilization Type",
+    description: "Description",
+    utilDescription: "Description of Impact / Usage",
+    staffName: "Staff Name",
+    courseName: "Course / Project Name",
+    devType: "Development Type",
+    activityDate: "Activity Date",
+    duration: "Duration (Hours)",
+    certificate: "Certificate / Report",
+    uploadCert: "Upload File",
+    noFile: "No file chosen",
+    
+    // Module 5
+    mou: "Memorandum of Understanding (MOU)",
+    ip: "Intellectual Property (IP)",
+    addMOU: "Add MOU",
+    addIP: "Add IP",
+    externalOrg: "External Organization",
+    signDate: "Sign Date",
+    scope: "Scope of Cooperation",
+    workName: "Innovation / Work Name",
+    ipType: "IP Type",
+    regNo: "Request / Registration No.",
+    regDate: "Registration Date",
+
+    // User Management
+    username: "Username",
+    password: "Password",
+    email: "Email",
+    confirmDeleteUser: "Are you sure you want to delete this user?",
+    loginError: "Invalid credentials or user not found.",
+    adminRole: "Administrator",
+    userRole: "User/Staff",
+    importCsv: "Import CSV",
+    downloadTemplate: "Download Template",
+    importSuccess: "Successfully imported users!",
+    importError: "Error importing CSV. Check format.",
+    processing: "Processing...",
   },
   th: {
     appTitle: "ระบบฐานข้อมูลวิจัยและนวัตกรรม TNSU",
@@ -115,16 +177,30 @@ export const TRANSLATIONS = {
     selectType: "เลือกประเภทหน่วยงาน",
     selectOrg: "เลือกหน่วยงาน",
     enterName: "กรอกชื่อผู้ใช้งาน",
+    enterPass: "กรอกรหัสผ่าน",
     loginButton: "เข้าสู่ระบบ",
     logout: "ออกจากระบบ",
     dashboard: "แดชบอร์ด",
     projects: "ข้อมูลโครงการวิจัย",
     publications: "ผลงานตีพิมพ์",
+    personnel: "พัฒนาบุคลากร",
+    utilization: "การนำไปใช้ประโยชน์",
+    ip_mou: "ทรัพย์สินทางปัญญา & MOU",
+    users: "ผู้ใช้งานระบบ",
     totalProjects: "โครงการทั้งหมด",
     totalPubs: "ผลงานตีพิมพ์ทั้งหมด",
     successRate: "อัตราความสำเร็จเฉลี่ย",
     addProject: "เพิ่มโครงการใหม่",
+    editProject: "แก้ไขโครงการ",
+    edit: "แก้ไข",
+    delete: "ลบ",
     addPub: "เพิ่มผลงานตีพิมพ์",
+    addUtil: "เพิ่มข้อมูลการนำไปใช้ประโยชน์",
+    addPersonnel: "เพิ่มข้อมูลพัฒนาบุคลากร",
+    addUser: "เพิ่มผู้ใช้งาน",
+    editUser: "แก้ไขผู้ใช้งาน",
+    editUtil: "แก้ไขข้อมูลการนำไปใช้ประโยชน์",
+    editPersonnel: "แก้ไขข้อมูลพัฒนาบุคลากร",
     fiscalYear: "ปีงบประมาณ",
     status: "สถานะ",
     project: "โครงการ",
@@ -148,9 +224,51 @@ export const TRANSLATIONS = {
     title: "ชื่อบทความ",
     type: "ประเภท",
     level: "ระดับ",
-    searchPlaceholder: "ค้นหาชื่อโครงการ, รหัส, หรือนักวิจัย...",
+    searchPlaceholder: "ค้นหา...",
     chatTitle: "ผู้ช่วยวิเคราะห์ AI TNSU",
     chatSubtitle: "ขับเคลื่อนโดย Gemini 3 Pro",
     chatPlaceholder: "สอบถามเกี่ยวกับแนวโน้มข้อมูล...",
+    projectDetails: "รายละเอียดโครงการ",
+    backToList: "กลับสู่รายการ",
+    noPubs: "ไม่พบผลงานตีพิมพ์ที่เกี่ยวข้อง",
+    noUtils: "ไม่พบข้อมูลการนำไปใช้ประโยชน์",
+    utilType: "ประเภทการนำไปใช้",
+    description: "รายละเอียด",
+    utilDescription: "รายละเอียดผลกระทบ / การนำไปใช้",
+    staffName: "ชื่อ-สกุล บุคลากร",
+    courseName: "ชื่อหลักสูตร / โครงการ",
+    devType: "รูปแบบการพัฒนา",
+    activityDate: "วันที่จัดกิจกรรม",
+    duration: "จำนวนชั่วโมง",
+    certificate: "แนบรายงาน/เกียรติบัตร",
+    uploadCert: "อัปโหลดไฟล์",
+    noFile: "ไม่ได้เลือกไฟล์",
+    
+    // Module 5
+    mou: "ความร่วมมือ (MOU)",
+    ip: "ทรัพย์สินทางปัญญา (IP)",
+    addMOU: "เพิ่ม MOU",
+    addIP: "เพิ่มทรัพย์สินทางปัญญา",
+    externalOrg: "ชื่อหน่วยงานภายนอก",
+    signDate: "วันที่ลงนาม",
+    scope: "ขอบเขตความร่วมมือ",
+    workName: "ชื่อผลงานนวัตกรรม",
+    ipType: "ประเภท",
+    regNo: "เลขที่คำขอ / เลขทะเบียน",
+    regDate: "วันที่จดทะเบียน",
+
+    // User Management
+    username: "ชื่อผู้ใช้",
+    password: "รหัสผ่าน",
+    email: "อีเมล",
+    confirmDeleteUser: "คุณแน่ใจหรือไม่ที่จะลบผู้ใช้นี้?",
+    loginError: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง หรือไม่พบผู้ใช้",
+    adminRole: "ผู้ดูแลระบบ (Admin)",
+    userRole: "เจ้าหน้าที่ (User)",
+    importCsv: "นำเข้าจาก CSV",
+    downloadTemplate: "โหลดแม่แบบ CSV",
+    importSuccess: "นำเข้าผู้ใช้งานสำเร็จ!",
+    importError: "เกิดข้อผิดพลาดในการนำเข้า กรุณาตรวจสอบรูปแบบไฟล์",
+    processing: "กำลังประมวลผล...",
   }
 };

@@ -1,3 +1,4 @@
+
 export enum FiscalYear {
   Y2566 = "2566",
   Y2567 = "2567",
@@ -29,9 +30,13 @@ export enum PublicationLevel {
   International = "International",
 }
 
+// Updated to match requirements
 export enum PublicationType {
-  Journal = "Journal",
-  Conference = "Conference",
+  TCI1 = "TCI Group 1",
+  TCI2 = "TCI Group 2",
+  Scopus = "Scopus / ISI",
+  Proceeding = "Conference Proceeding",
+  Other = "Other"
 }
 
 export enum UtilizationType {
@@ -39,6 +44,19 @@ export enum UtilizationType {
   Social = "Social",
   Policy = "Policy",
   Commercial = "Commercial",
+}
+
+export enum DevelopmentType {
+  Training = "Training",
+  Seminar = "Seminar",
+  Conference = "Academic Conference"
+}
+
+// Module 5 Types
+export enum IPType {
+  Patent = "Patent",
+  PettyPatent = "Petty Patent",
+  Copyright = "Copyright"
 }
 
 export interface ProjectMaster {
@@ -55,9 +73,14 @@ export interface ProjectMaster {
 
 export interface PersonnelDevelopment {
   id: string;
-  activity_fiscal_year: FiscalYear;
+  fiscal_year: FiscalYear;
   staff_name: string;
+  organization_name: string; // Faculty/Campus name
+  development_type: DevelopmentType;
   course_name: string;
+  activity_date: string; // ISO Date String
+  duration_hours: number;
+  certificate_url?: string; // Simulated URL/Filename
 }
 
 export interface PublicationOutput {
@@ -68,6 +91,7 @@ export interface PublicationOutput {
   publication_level: PublicationLevel;
   publication_type: PublicationType;
   is_published: boolean;
+  file_url?: string; // Attachment
 }
 
 export interface Utilization {
@@ -76,6 +100,25 @@ export interface Utilization {
   ref_project_id: string;
   utilization_type: UtilizationType;
   description: string;
+  evidence_url?: string; // Attachment
+}
+
+// Module 5 Interfaces
+export interface MOU {
+  id: string;
+  external_org_name: string;
+  sign_date: string;
+  scope: string;
+  fiscal_year: FiscalYear;
+}
+
+export interface IntellectualProperty {
+  id: string;
+  work_name: string;
+  ip_type: IPType;
+  request_number: string; // เลขที่คำขอ หรือ เลขทะเบียน
+  registration_date: string;
+  fiscal_year: FiscalYear;
 }
 
 // Chat types
@@ -104,7 +147,10 @@ export interface Organization {
 }
 
 export interface User {
+  id: string;
   username: string;
-  organization: Organization;
+  password?: string; // Optional because we might not retrieve it to UI
+  email: string;
+  organization: Organization; // Stores full Org object for easier context
   role: 'Admin' | 'User';
 }
