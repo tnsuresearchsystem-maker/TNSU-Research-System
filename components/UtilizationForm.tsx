@@ -17,17 +17,15 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
   const [formData, setFormData] = useState<Partial<Utilization>>({
     utilization_reporting_year: FiscalYear.Y2568,
     utilization_type: UtilizationType.Academic,
-    description: ''
+    description: '',
+    evidence_url: ''
   });
 
   const [searchProject, setSearchProject] = useState("");
-  const [fileName, setFileName] = useState("");
 
-  // Populate form if editing
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
-      if (initialData.evidence_url) setFileName(initialData.evidence_url);
     }
   }, [initialData]);
 
@@ -43,10 +41,8 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
     }
 
     const newUtil: Utilization = {
-      // Use existing ID if editing, otherwise generate new
       id: initialData?.id || `u_${Math.random().toString(36).substr(2, 6)}`,
-      ...formData as Utilization,
-      evidence_url: fileName
+      ...formData as Utilization
     };
     onSave(newUtil);
   };
@@ -55,13 +51,6 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    }
-  };
-
-  // Logic to show projects matching search
   const filteredProjects = projects.filter(p => 
     p.project_name.toLowerCase().includes(searchProject.toLowerCase()) || 
     p.head_researcher.toLowerCase().includes(searchProject.toLowerCase()) ||
@@ -169,23 +158,21 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
           />
         </div>
 
-        {/* File Upload Simulation */}
+        {/* URL Input */}
         <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadCert')} (Evidence)</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors">
-              <div className="space-y-1 text-center">
-                <span className="material-icons text-gray-400 text-3xl">attach_file</span>
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
-                    <span>Choose File</span>
-                    <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
-                  </label>
-                  <p className="pl-1">or drag and drop</p>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {fileName ? <span className="font-bold text-blue-700">{fileName}</span> : "Activity Photos / Certificate"}
-                </p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadCert')} (Evidence URL)</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="material-icons text-gray-400">link</span>
               </div>
+              <input 
+                type="url" 
+                name="evidence_url"
+                value={formData.evidence_url || ''}
+                onChange={handleChange}
+                className="w-full pl-10 border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="https://drive.google.com/..."
+              />
             </div>
         </div>
         

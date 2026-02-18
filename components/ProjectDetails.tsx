@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { ProjectMaster, PublicationOutput, Utilization } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { deleteProjectFromDB } from '../services/dbService';
 
 interface ProjectDetailsProps {
   project: ProjectMaster;
@@ -15,6 +17,24 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
 
   const linkedPubs = publications.filter(pub => pub.ref_project_id === project.project_id);
   const linkedUtils = utilizations.filter(ut => ut.ref_project_id === project.project_id);
+
+  const handleDelete = async () => {
+    // Safety Lock: Prevent delete if related data exists
+    if (linkedPubs.length > 0 || linkedUtils.length > 0) {
+      alert("Cannot delete project! It has linked Publications or Utilization records. Please remove them first.");
+      return;
+    }
+
+    if (window.confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+      try {
+        await deleteProjectFromDB(project.project_id);
+        onBack(); // Go back to list, list should refresh or be updated by parent state
+        window.location.reload(); // Simple refresh to show updated state for now
+      } catch (error) {
+        alert("Error deleting project.");
+      }
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in-up font-sans">
@@ -32,13 +52,24 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
             <p className="text-gray-500 text-sm">ID: {project.project_id}</p>
           </div>
         </div>
-        <button
-          onClick={() => onEdit(project)}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:text-tnsu-green-600 hover:border-tnsu-green-200 transition-all shadow-sm"
-        >
-          <span className="material-icons text-sm">edit</span>
-          <span className="font-medium text-sm">{t('edit')}</span>
-        </button>
+        
+        <div className="flex space-x-3">
+          <button
+            onClick={handleDelete}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-all shadow-sm"
+          >
+            <span className="material-icons text-sm">delete</span>
+            <span className="font-medium text-sm">{t('delete')}</span>
+          </button>
+
+          <button
+            onClick={() => onEdit(project)}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:text-tnsu-green-600 hover:border-tnsu-green-200 transition-all shadow-sm"
+          >
+            <span className="material-icons text-sm">edit</span>
+            <span className="font-medium text-sm">{t('edit')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Info Card */}
@@ -110,6 +141,12 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
                           </div>
                           <p className="text-sm font-semibold text-gray-800 leading-snug">{pub.article_title}</p>
                           <p className="text-xs text-gray-500 mt-1">{pub.publication_type}</p>
+                          {pub.file_url && (
+                            <a href={pub.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-2 inline-flex items-center">
+                              <span className="material-icons text-[12px] mr-1">link</span>
+                              View Linked Document
+                            </a>
+                          )}
                       </div>
                   )) : (
                       <div className="text-center py-8 text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -140,6 +177,12 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
                                <span className="text-xs text-gray-400">{ut.utilization_reporting_year}</span>
                           </div>
                           <p className="text-sm text-gray-700 pl-2">{ut.description}</p>
+                          {ut.evidence_url && (
+                            <a href={ut.evidence_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-2 inline-flex items-center pl-2">
+                              <span className="material-icons text-[12px] mr-1">link</span>
+                              View Evidence
+                            </a>
+                          )}
                       </div>
                   )) : (
                       <div className="text-center py-8 text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">

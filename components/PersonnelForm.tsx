@@ -22,17 +22,13 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
     duration_hours: 0,
     activity_date: new Date().toISOString().split('T')[0],
     staff_name: '',
-    course_name: ''
+    course_name: '',
+    certificate_url: ''
   });
-
-  const [fileName, setFileName] = useState<string>('');
 
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
-      if (initialData.certificate_url) {
-        setFileName(initialData.certificate_url);
-      }
     }
   }, [initialData]);
 
@@ -54,7 +50,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
       course_name: formData.course_name,
       activity_date: formData.activity_date || new Date().toISOString().split('T')[0],
       duration_hours: Number(formData.duration_hours),
-      certificate_url: fileName // Simulating file path save for DB
+      certificate_url: formData.certificate_url
     };
     
     onSave(dataToSave);
@@ -62,14 +58,6 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      // In a real app, this would upload to Firebase Storage and return a URL
-      // Here we simulate by storing the filename
-      setFileName(e.target.files[0].name);
-    }
   };
 
   return (
@@ -183,28 +171,21 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
           />
         </div>
 
-        {/* Certificate / Report Upload */}
+        {/* URL Input */}
         <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('certificate')} / Report</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors bg-gray-50/30">
-              <div className="space-y-1 text-center">
-                <span className="material-icons text-gray-400 text-3xl">upload_file</span>
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-tnsu-green-600 hover:text-tnsu-green-500 focus-within:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-tnsu-green-500 px-2">
-                    <span>{t('uploadCert')}</span>
-                    <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".pdf,.doc,.docx,.jpg,.png" onChange={handleFileChange} />
-                  </label>
-                  <p className="pl-1">or drag and drop</p>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {fileName ? (
-                    <span className="font-bold text-tnsu-green-700 flex items-center justify-center">
-                      <span className="material-icons text-sm mr-1">check_circle</span>
-                      {fileName}
-                    </span>
-                  ) : "PDF, Word, or Images up to 10MB"}
-                </p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('certificate')} / Report (URL)</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="material-icons text-gray-400">link</span>
               </div>
+              <input 
+                type="url" 
+                name="certificate_url"
+                value={formData.certificate_url || ''}
+                onChange={handleChange}
+                className="w-full pl-10 border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
+                placeholder="https://drive.google.com/..."
+              />
             </div>
         </div>
 

@@ -1,8 +1,9 @@
 
-import { db } from "../firebaseConfig";
-import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy } from "firebase/firestore";
+import { db, auth } from "../firebaseConfig";
+import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
-import { initialUsers } from "./mockData"; // Import initialUsers for fallback
+import { initialUsers } from "./mockData";
 
 // Collection Names
 const PROJECTS_COL = "projects";
@@ -14,7 +15,7 @@ const IPS_COL = "ips";
 const USERS_COL = "users";
 const LOGS_COL = "system_logs";
 
-// --- LOGGING UTILITY ---
+// --- LOGGING UTILITY (PAGINATED) ---
 
 export const logUserActivity = async (
   actor: User, 
@@ -35,18 +36,44 @@ export const logUserActivity = async (
     await addDoc(collection(db, LOGS_COL), logEntry);
   } catch (error) {
     console.error("Failed to write system log:", error);
-    // Don't throw error to prevent blocking main action
   }
 };
 
-export const getSystemLogs = async (): Promise<SystemLog[]> => {
+// Return type includes the data and the last visible document cursor
+export const getSystemLogs = async (
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null = null,
+  pageSize: number = 20
+): Promise<{ logs: SystemLog[], lastDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
   try {
-    const q = query(collection(db, LOGS_COL), orderBy("timestamp", "desc"), limit(100));
+    let q;
+    
+    if (lastVisible) {
+      // Load Next Page
+      q = query(
+        collection(db, LOGS_COL), 
+        orderBy("timestamp", "desc"), 
+        startAfter(lastVisible),
+        limit(pageSize)
+      );
+    } else {
+      // Load First Page
+      q = query(
+        collection(db, LOGS_COL), 
+        orderBy("timestamp", "desc"), 
+        limit(pageSize)
+      );
+    }
+
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ ...doc.data() as SystemLog }));
+    const logs = querySnapshot.docs.map(doc => ({ ...doc.data() as SystemLog }));
+    
+    // Get the last document to use as cursor for next call
+    const lastDoc = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
+
+    return { logs, lastDoc };
   } catch (error) {
     console.error("Error fetching logs:", error);
-    return [];
+    return { logs: [], lastDoc: null };
   }
 };
 
@@ -76,19 +103,31 @@ export const addProjectToDB = async (project: ProjectMaster): Promise<void> => {
 
 export const updateProjectInDB = async (project: ProjectMaster): Promise<void> => {
   try {
-    // Find the document with the matching project_id
     const q = query(collection(db, PROJECTS_COL), where("project_id", "==", project.project_id), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      // Update the document
       await updateDoc(docRef, { ...project });
     } else {
       console.error("Project not found to update:", project.project_id);
     }
   } catch (error) {
     console.error("Error updating project:", error);
+    throw error;
+  }
+};
+
+export const deleteProjectFromDB = async (projectId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, PROJECTS_COL), where("project_id", "==", projectId), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await deleteDoc(docRef);
+    }
+  } catch (error) {
+    console.error("Error deleting project:", error);
     throw error;
   }
 };
@@ -258,17 +297,21 @@ export const getUsersFromDB = async (): Promise<User[]> => {
 
 export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
   try {
-    // Basic check for existing username
+    // Check for existing username in Firestore
     const q = query(collection(db, USERS_COL), where("username", "==", user.username));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
        throw new Error("Username already exists");
     }
+
+    // We store the user info in Firestore for the Admin Panel list
+    // WARNING: Storing password in Firestore is not recommended for production.
+    // We do it here only to allow fallback login if Auth isn't set up.
     await addDoc(collection(db, USERS_COL), user);
     
     // Log the creation
     if (actor) {
-      await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role})`);
+      await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role}). Note: Auth account must be created separately.`);
     }
   } catch (error) {
     console.error("Error adding User:", error);
@@ -319,36 +362,78 @@ export const deleteUserFromDB = async (id: string, actor?: User): Promise<void> 
     }
 }
 
-// Mock Authentication (Check against DB, Fallback to Mock Data)
-export const authenticateUser = async (username: string, password: string): Promise<User | null> => {
+// --- AUTHENTICATION SERVICE ---
+
+export const loginWithFirebase = async (email: string, pass: string): Promise<User | null> => {
   try {
-    // 1. Try connecting to Firebase Firestore
-    const q = query(collection(db, USERS_COL), where("username", "==", username), limit(1));
+    // 1. Attempt Firebase Auth Login
+    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+    const firebaseUser = userCredential.user;
+
+    // 2. Fetch User Profile from Firestore based on Email
+    // (Since we can't add custom claims easily in frontend-only, we map email to Firestore doc)
+    const q = query(collection(db, USERS_COL), where("email", "==", firebaseUser.email), limit(1));
     const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+       const userProfile = snapshot.docs[0].data() as User;
+       await logUserActivity(userProfile, 'LOGIN', 'System', 'User logged in via Firebase Auth');
+       return userProfile;
+    } else {
+       console.error("Login successful but no user profile found in Firestore.");
+       // Security: Log them out if they don't have a profile
+       await signOut(auth); 
+       return null;
+    }
+  } catch (error: any) {
+    console.error("Firebase Auth Error:", error.code, error.message);
+    
+    // FALLBACK: Try Legacy/Mock Login if Firebase Auth fails (e.g. user not created in Console yet)
+    // This ensures the initial demo users still work.
+    return await authenticateUserLegacy(email, pass);
+  }
+};
+
+export const logoutUser = async (): Promise<void> => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Logout Error:", error);
+  }
+};
+
+// Legacy/Fallback Authentication (for initial seeding or if Auth not set up)
+// Accepts username OR email
+export const authenticateUserLegacy = async (identifier: string, password: string): Promise<User | null> => {
+  try {
+    // Check against DB (Username OR Email)
+    // Note: Firestore OR queries are tricky, doing two checks for simplicity in fallback
+    let q = query(collection(db, USERS_COL), where("username", "==", identifier), limit(1));
+    let snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+       q = query(collection(db, USERS_COL), where("email", "==", identifier), limit(1));
+       snapshot = await getDocs(q);
+    }
     
     if (!snapshot.empty) {
        const user = snapshot.docs[0].data() as User;
        if (user.password === password) {
-         await logUserActivity(user, 'LOGIN', 'System', 'User logged in successfully (DB)');
+         await logUserActivity(user, 'LOGIN', 'System', 'User logged in (Legacy/Fallback Mode)');
          return user;
        }
     } else {
-       // 2. Fallback: If DB is empty or user not found, check mock data (Initial Setup)
-       console.log("User not found in DB, checking initial seed data...");
-       const mockUser = initialUsers.find(u => u.username === username && u.password === password);
+       // Fallback to Mock Data
+       const mockUser = initialUsers.find(u => (u.username === identifier || u.email === identifier) && u.password === password);
        if (mockUser) {
-           console.log("Logged in via Fallback Mode (Mock Data)");
+           console.log("Logged in via Mock Data");
            return mockUser;
        }
     }
 
     return null;
   } catch (error) {
-    console.error("Auth Error:", error);
-    // Fallback in case of DB connection error
-    const mockUser = initialUsers.find(u => u.username === username && u.password === password);
-    if (mockUser) return mockUser;
-    
+    console.error("Legacy Auth Error:", error);
     return null;
   }
 };

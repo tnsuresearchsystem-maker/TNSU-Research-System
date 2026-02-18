@@ -12,18 +12,17 @@ interface PublicationFormProps {
 
 const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublication, onCancel }) => {
   const { t } = useLanguage();
-  // Mode toggle for UX
   const [historicalMode, setHistoricalMode] = useState(false);
   
   const [formData, setFormData] = useState<Partial<PublicationOutput>>({
     output_reporting_year: FiscalYear.Y2568,
     is_published: true,
     publication_level: PublicationLevel.National,
-    publication_type: PublicationType.TCI1
+    publication_type: PublicationType.TCI1,
+    file_url: '' // Changed to store URL string
   });
 
   const [searchProject, setSearchProject] = useState("");
-  const [fileName, setFileName] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,8 +32,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     }
     const newPub: PublicationOutput = {
       output_id: `o_${Math.random().toString(36).substr(2, 6)}`,
-      ...formData as PublicationOutput,
-      file_url: fileName
+      ...formData as PublicationOutput
     };
     onAddPublication(newPub);
   };
@@ -43,13 +41,6 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    }
-  };
-
-  // Logic to show projects from past years
   const filteredProjects = projects.filter(p => 
     p.project_name.toLowerCase().includes(searchProject.toLowerCase()) || 
     p.head_researcher.toLowerCase().includes(searchProject.toLowerCase()) ||
@@ -67,7 +58,6 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
           <p className="text-gray-500 text-sm mt-1">Link an output to its original funding source (Cross-Year Mapping)</p>
         </div>
         
-        {/* Requirement 2: Historical Data Entry Mode */}
         <div className="flex items-center bg-tnsu-yellow-50 px-4 py-2 rounded-lg border border-tnsu-yellow-100">
           <input 
             type="checkbox" 
@@ -108,7 +98,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
           </select>
         </div>
 
-        {/* Project Link - The Core Logic */}
+        {/* Project Link */}
         <div className="col-span-2 p-5 bg-blue-50/50 rounded-xl border border-blue-100">
           <label className="block text-sm font-bold text-blue-900 mb-2">
             <span className="material-icons text-sm align-middle mr-1">link</span>
@@ -147,7 +137,6 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
                     </div>
                     <div className="flex flex-col items-end">
                        <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">Funded: {p.funding_fiscal_year}</span>
-                       <span className={`text-[10px] mt-1 font-medium px-1.5 py-0.5 rounded ${p.status === 'Completed' ? 'text-green-700 bg-green-50' : 'text-orange-700 bg-orange-50'}`}>{p.status}</span>
                     </div>
                  </div>
                ))
@@ -182,24 +171,23 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
           </select>
         </div>
 
-        {/* File Upload Simulation */}
+        {/* URL Link Input (Google Drive) */}
         <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadCert')}</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl hover:bg-gray-50 transition-colors">
-              <div className="space-y-1 text-center">
-                <span className="material-icons text-gray-400 text-3xl">upload_file</span>
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-tnsu-green-600 hover:text-tnsu-green-500 focus-within:outline-none">
-                    <span>Choose File</span>
-                    <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".pdf,.png,.jpg" onChange={handleFileChange} />
-                  </label>
-                  <p className="pl-1">or drag and drop</p>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {fileName ? <span className="font-bold text-tnsu-green-700">{fileName}</span> : "Article Front Page (PDF/IMG)"}
-                </p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Link to File (Google Drive / PDF URL)</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="material-icons text-gray-400">link</span>
               </div>
+              <input 
+                type="url" 
+                name="file_url"
+                value={formData.file_url || ''}
+                onChange={handleChange}
+                className="w-full pl-10 border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
+                placeholder="https://drive.google.com/file/d/..."
+              />
             </div>
+            <p className="text-xs text-gray-500 mt-1">Paste a link to your document (e.g., Google Drive, Dropbox, or Website).</p>
         </div>
         
         {/* Buttons */}

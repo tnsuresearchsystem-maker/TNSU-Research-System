@@ -4,6 +4,7 @@ import { User, SystemLog, OrganizationType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ALL_ORGANIZATIONS } from '../constants';
 import { getSystemLogs } from '../services/dbService';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 interface UserManagementProps {
   users: User[];
@@ -19,20 +20,42 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL'); // New Filter State
   const [isImporting, setIsImporting] = useState(false);
+  
+  // Pagination State for Logs
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [lastLogDoc, setLastLogDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMoreLogs, setHasMoreLogs] = useState(true);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (activeTab === 'logs') {
-      fetchLogs();
+    if (activeTab === 'logs' && logs.length === 0) {
+      fetchLogs(true);
     }
   }, [activeTab]);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (isInitial = false) => {
     setLoadingLogs(true);
-    const data = await getSystemLogs();
-    setLogs(data);
+    // If initial load, start from null. If load more, use lastLogDoc
+    const cursor = isInitial ? null : lastLogDoc;
+    const { logs: newLogs, lastDoc } = await getSystemLogs(cursor);
+    
+    if (isInitial) {
+      setLogs(newLogs);
+    } else {
+      setLogs(prev => [...prev, ...newLogs]);
+    }
+    
+    setLastLogDoc(lastDoc);
+    
+    // Assume if we got fewer than requested (20), we reached the end
+    if (newLogs.length < 20) {
+       setHasMoreLogs(false);
+    } else {
+       setHasMoreLogs(true);
+    }
+    
     setLoadingLogs(false);
   };
 
@@ -272,53 +295,70 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
           </div>
         </>
       ) : (
-        /* Logs View */
+        /* Logs View (Paginated) */
         <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
           <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
              <h3 className="text-gray-700 font-bold flex items-center">
                <span className="material-icons text-gray-500 mr-2">list_alt</span>
                {t('systemLogs')}
              </h3>
-             <button onClick={fetchLogs} className="text-sm text-blue-600 hover:underline">Refresh</button>
+             <button onClick={() => fetchLogs(true)} className="text-sm text-blue-600 hover:underline">Refresh</button>
           </div>
-          {loadingLogs ? (
-             <div className="p-8 text-center text-gray-500">Loading logs...</div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logTime')}</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logUser')}</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logAction')}</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logDetails')}</th>
+          
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logTime')}</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logUser')}</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logAction')}</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('logDetails')}</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {logs.length > 0 ? logs.map(log => (
+                <tr key={log.id} className="hover:bg-gray-50 text-sm">
+                  <td className="px-6 py-3 whitespace-nowrap text-gray-500">
+                    {new Date(log.timestamp).toLocaleString(language === 'th' ? 'th-TH' : 'en-US')}
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap font-medium text-gray-900">
+                    {log.actor_username}
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap">
+                     <span className={`px-2 py-1 rounded text-xs font-bold 
+                       ${log.action_type === 'LOGIN' ? 'bg-green-100 text-green-800' : 
+                         log.action_type === 'DELETE' ? 'bg-red-100 text-red-800' : 
+                         log.action_type === 'CREATE' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                       {log.action_type}
+                     </span>
+                  </td>
+                  <td className="px-6 py-3 text-gray-600">{log.details}</td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {logs.length > 0 ? logs.map(log => (
-                  <tr key={log.id} className="hover:bg-gray-50 text-sm">
-                    <td className="px-6 py-3 whitespace-nowrap text-gray-500">
-                      {new Date(log.timestamp).toLocaleString(language === 'th' ? 'th-TH' : 'en-US')}
-                    </td>
-                    <td className="px-6 py-3 whitespace-nowrap font-medium text-gray-900">
-                      {log.actor_username}
-                    </td>
-                    <td className="px-6 py-3 whitespace-nowrap">
-                       <span className={`px-2 py-1 rounded text-xs font-bold 
-                         ${log.action_type === 'LOGIN' ? 'bg-green-100 text-green-800' : 
-                           log.action_type === 'DELETE' ? 'bg-red-100 text-red-800' : 
-                           log.action_type === 'CREATE' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
-                         {log.action_type}
-                       </span>
-                    </td>
-                    <td className="px-6 py-3 text-gray-600">{log.details}</td>
-                  </tr>
-                )) : (
+              )) : (
+                !loadingLogs && (
                   <tr>
                     <td colSpan={4} className="p-6 text-center text-gray-400">No logs found.</td>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                )
+              )}
+            </tbody>
+          </table>
+
+          {/* Load More Button - Only shows if there are more logs to fetch */}
+          {hasMoreLogs && (
+            <div className="p-4 border-t border-gray-200 text-center">
+              <button 
+                onClick={() => fetchLogs(false)}
+                disabled={loadingLogs}
+                className="text-sm font-medium text-tnsu-green-600 hover:text-tnsu-green-800 disabled:opacity-50 flex items-center justify-center mx-auto"
+              >
+                {loadingLogs ? (
+                    <>
+                        <span className="animate-spin h-4 w-4 border-2 border-tnsu-green-600 border-t-transparent rounded-full mr-2"></span>
+                        Loading...
+                    </>
+                ) : 'Load More Logs'}
+              </button>
+            </div>
           )}
         </div>
       )}
