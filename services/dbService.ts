@@ -2,6 +2,7 @@
 import { db } from "../firebaseConfig";
 import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy } from "firebase/firestore";
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
+import { initialUsers } from "./mockData"; // Import initialUsers for fallback
 
 // Collection Names
 const PROJECTS_COL = "projects";
@@ -318,24 +319,36 @@ export const deleteUserFromDB = async (id: string, actor?: User): Promise<void> 
     }
 }
 
-// Mock Authentication (Check against DB)
+// Mock Authentication (Check against DB, Fallback to Mock Data)
 export const authenticateUser = async (username: string, password: string): Promise<User | null> => {
   try {
+    // 1. Try connecting to Firebase Firestore
     const q = query(collection(db, USERS_COL), where("username", "==", username), limit(1));
     const snapshot = await getDocs(q);
     
-    if (snapshot.empty) return null;
-    
-    const user = snapshot.docs[0].data() as User;
-    // Simple password check (In production, use hashed passwords or Firebase Auth)
-    if (user.password === password) {
-      // LOG SUCCESSFUL LOGIN
-      await logUserActivity(user, 'LOGIN', 'System', 'User logged in successfully');
-      return user;
+    if (!snapshot.empty) {
+       const user = snapshot.docs[0].data() as User;
+       if (user.password === password) {
+         await logUserActivity(user, 'LOGIN', 'System', 'User logged in successfully (DB)');
+         return user;
+       }
+    } else {
+       // 2. Fallback: If DB is empty or user not found, check mock data (Initial Setup)
+       console.log("User not found in DB, checking initial seed data...");
+       const mockUser = initialUsers.find(u => u.username === username && u.password === password);
+       if (mockUser) {
+           console.log("Logged in via Fallback Mode (Mock Data)");
+           return mockUser;
+       }
     }
+
     return null;
   } catch (error) {
     console.error("Auth Error:", error);
+    // Fallback in case of DB connection error
+    const mockUser = initialUsers.find(u => u.username === username && u.password === password);
+    if (mockUser) return mockUser;
+    
     return null;
   }
 };
