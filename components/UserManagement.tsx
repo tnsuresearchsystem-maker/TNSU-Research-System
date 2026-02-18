@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, SystemLog } from '../types';
+import { User, SystemLog, OrganizationType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ALL_ORGANIZATIONS } from '../constants';
 import { getSystemLogs } from '../services/dbService';
@@ -17,6 +17,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState<string>('ALL'); // New Filter State
   const [isImporting, setIsImporting] = useState(false);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -35,11 +36,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
     setLoadingLogs(false);
   };
 
-  const filteredUsers = users.filter(u => 
-    u.username.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    (language === 'th' ? u.organization.nameTh : u.organization.nameEn).toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = 
+      u.username.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      (language === 'th' ? u.organization.nameTh : u.organization.nameEn).toLowerCase().includes(search.toLowerCase());
+    
+    const matchesType = filterType === 'ALL' || u.organization.type === filterType;
+
+    return matchesSearch && matchesType;
+  });
 
   const handleDownloadTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8,Username,Email,Role (Admin/User),Organization ID\nuser1,user1@tnsu.ac.th,User,c_chiangmai\nadmin2,admin2@tnsu.ac.th,Admin,c_bangkok";
@@ -136,15 +142,30 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
       {activeTab === 'users' ? (
         <>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-             <div className="relative w-full md:w-auto flex-grow max-w-md">
-                <input 
-                  type="text" 
-                  placeholder={t('searchPlaceholder')}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent text-sm transition-all"
-                />
-                <span className="material-icons absolute left-3 top-2.5 text-gray-400 text-lg">search</span>
+             <div className="flex gap-2 w-full md:w-auto flex-grow max-w-2xl">
+                {/* Search Box */}
+                <div className="relative flex-grow">
+                  <input 
+                    type="text" 
+                    placeholder={t('searchPlaceholder')}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent text-sm transition-all"
+                  />
+                  <span className="material-icons absolute left-3 top-2.5 text-gray-400 text-lg">search</span>
+                </div>
+
+                {/* Filter Dropdown */}
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-700"
+                >
+                  <option value="ALL">{language === 'th' ? 'ทั้งหมด (All)' : 'All Organizations'}</option>
+                  <option value={OrganizationType.Campus}>{language === 'th' ? 'วิทยาเขต (Campuses)' : 'Campuses'}</option>
+                  <option value={OrganizationType.SportsSchool}>{language === 'th' ? 'โรงเรียนกีฬา (Sports Schools)' : 'Sports Schools'}</option>
+                  <option value={OrganizationType.OfficePresident}>{language === 'th' ? 'สนง.อธิการบดี (Office)' : 'Office of President'}</option>
+                </select>
              </div>
              
              <div className="flex space-x-3">
@@ -153,7 +174,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                   className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 text-sm flex items-center transition-colors"
                 >
                   <span className="material-icons text-base mr-2">download</span>
-                  {t('downloadTemplate')}
+                  <span className="hidden lg:inline">{t('downloadTemplate')}</span>
                 </button>
 
                 <div className="relative">
@@ -174,7 +195,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                     ) : (
                       <span className="material-icons text-base mr-2">upload_file</span>
                     )}
-                    {isImporting ? t('processing') : t('importCsv')}
+                    <span className="hidden lg:inline">{isImporting ? t('processing') : t('importCsv')}</span>
                   </button>
                 </div>
 
@@ -200,7 +221,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map(user => (
+                {filteredUsers.length > 0 ? filteredUsers.map(user => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                        <div className="flex items-center">
@@ -217,6 +238,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {language === 'th' ? user.organization.nameTh : user.organization.nameEn}
+                      <div className="text-xs text-gray-400">
+                        {user.organization.type === OrganizationType.OfficePresident ? (language === 'th' ? 'ส่วนกลาง' : 'Central') : 
+                         user.organization.type === OrganizationType.Campus ? (language === 'th' ? 'วิทยาเขต/คณะ' : 'Campus/Faculty') : 
+                         (language === 'th' ? 'โรงเรียนกีฬา' : 'Sports School')}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -234,7 +260,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                       </button>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                   <tr>
+                     <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                       No users found matching filters.
+                     </td>
+                   </tr>
+                )}
               </tbody>
             </table>
           </div>

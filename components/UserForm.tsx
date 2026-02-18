@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, OrganizationType } from '../types';
-import { ALL_ORGANIZATIONS } from '../constants';
+import { User } from '../types';
+import { ALL_ORGANIZATIONS, CENTRAL_OFFICE, CAMPUSES, SPORTS_SCHOOLS, FACULTIES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface UserFormProps {
@@ -95,10 +95,11 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
             name="password" 
             value={formData.password || ''} 
             onChange={handleChange}
-            placeholder={initialData ? "******** (Leave empty to keep)" : ""}
+            placeholder={initialData ? "******** (Leave empty to keep)" : "Set password"}
             className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
             required={!initialData}
           />
+          {initialData && <p className="text-xs text-blue-500 mt-1">Enter new password only if you want to reset it.</p>}
         </div>
 
         {/* Role */}
@@ -116,7 +117,7 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
           </select>
         </div>
 
-        {/* Organization */}
+        {/* Organization - Grouped for Better UX */}
         <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('selectOrg')}</label>
           <select 
@@ -125,11 +126,29 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
             className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
             required
           >
-            {ALL_ORGANIZATIONS.map(org => (
-              <option key={org.id} value={org.id}>
-                {language === 'th' ? org.nameTh : org.nameEn}
-              </option>
-            ))}
+            <optgroup label={language === 'th' ? "สำนักงานอธิการบดี (Office of President)" : "Office of the President"}>
+                {CENTRAL_OFFICE.map(org => (
+                  <option key={org.id} value={org.id}>{language === 'th' ? org.nameTh : org.nameEn}</option>
+                ))}
+            </optgroup>
+            
+            <optgroup label={language === 'th' ? "วิทยาเขต (Campuses)" : "Campuses"}>
+                {CAMPUSES.map(org => (
+                  <option key={org.id} value={org.id}>{language === 'th' ? org.nameTh : org.nameEn}</option>
+                ))}
+            </optgroup>
+
+            <optgroup label={language === 'th' ? "คณะวิชา (Faculties)" : "Faculties"}>
+                {FACULTIES.map(org => (
+                  <option key={org.id} value={org.id}>{language === 'th' ? org.nameTh : org.nameEn}</option>
+                ))}
+            </optgroup>
+
+            <optgroup label={language === 'th' ? "โรงเรียนกีฬา (Sports Schools)" : "Sports Schools"}>
+                {SPORTS_SCHOOLS.map(org => (
+                  <option key={org.id} value={org.id}>{language === 'th' ? org.nameTh : org.nameEn}</option>
+                ))}
+            </optgroup>
           </select>
         </div>
 
