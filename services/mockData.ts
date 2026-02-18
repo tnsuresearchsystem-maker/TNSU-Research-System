@@ -155,7 +155,7 @@ export const initialUsers: User[] = [
     password: "password123", // In production, use hashed passwords or Auth Provider
     email: "admin@tnsu.ac.th",
     role: "Admin",
-    organization: CENTRAL_OFFICE[0]
+    organization: CENTRAL_OFFICE[0] // Super Admin assigned to Office of the President
   },
   {
     id: "user_chiangmai",

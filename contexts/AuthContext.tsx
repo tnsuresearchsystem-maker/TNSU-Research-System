@@ -19,10 +19,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authUser = await authenticateUser(username, password);
     
     if (authUser) {
-      // Security: Ensure the user belongs to the selected organization (optional, but good for structure)
-      // For this demo, we can either overwrite the DB org with selected, or enforce strict matching.
-      // Let's assume strict matching is better, or allow flexibility if org structure changed.
-      // Here, I will allow login if username/pass correct, but update the session with DB user info.
+      // Security: Ensure the user belongs to the selected organization
+      // This enforces that 'admin' (who belongs to Office of the President) cannot login via a Campus selection
+      if (authUser.organization.id !== organization.id) {
+         console.warn(`Login mismatch: User ${username} belongs to ${authUser.organization.id} but tried to login to ${organization.id}`);
+         return false;
+      }
       
       setUser(authUser);
       return true;
