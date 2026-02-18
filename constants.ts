@@ -168,6 +168,12 @@ export const TRANSLATIONS = {
     importSuccess: "Successfully imported users!",
     importError: "Error importing CSV. Check format.",
     processing: "Processing...",
+    systemLogs: "System Logs / Audit Trail",
+    userList: "User List",
+    logAction: "Action",
+    logUser: "User",
+    logDetails: "Details",
+    logTime: "Timestamp",
   },
   th: {
     appTitle: "ระบบฐานข้อมูลวิจัยและนวัตกรรม TNSU",
@@ -270,5 +276,11 @@ export const TRANSLATIONS = {
     importSuccess: "นำเข้าผู้ใช้งานสำเร็จ!",
     importError: "เกิดข้อผิดพลาดในการนำเข้า กรุณาตรวจสอบรูปแบบไฟล์",
     processing: "กำลังประมวลผล...",
+    systemLogs: "บันทึกการใช้งานระบบ (Audit Log)",
+    userList: "รายชื่อผู้ใช้งาน",
+    logAction: "การกระทำ",
+    logUser: "ผู้ดำเนินการ",
+    logDetails: "รายละเอียด",
+    logTime: "เวลา",
   }
 };

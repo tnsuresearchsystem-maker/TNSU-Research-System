@@ -15,7 +15,7 @@ import Login from './components/Login';
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User } from './types';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, addPublicationToDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase } from './services/dbService';
+import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, addPublicationToDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
 
 function AppContent() {
@@ -204,7 +204,7 @@ function AppContent() {
            setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr));
            setShowUserForm(false);
            setEditingUser(null);
-           await updateUserInDB(u);
+           await updateUserInDB(u, user); // Pass 'user' for logging
         } catch (error) {
            alert("Error updating user.");
         }
@@ -212,7 +212,7 @@ function AppContent() {
         try {
            setUsers(prev => [...prev, u]);
            setShowUserForm(false);
-           await addUserToDB(u);
+           await addUserToDB(u, user); // Pass 'user' for logging
         } catch (error: any) {
            alert(error.message || "Error adding user.");
         }
@@ -220,8 +220,6 @@ function AppContent() {
   };
 
   const handleBulkAddUsers = async (newUsers: User[]) => {
-    // Filter out users that already exist locally to prevent duplicates in state
-    // (Database will also throw error, but better to filter first)
     const uniqueNewUsers = newUsers.filter(nu => !users.some(u => u.username === nu.username));
     
     if (uniqueNewUsers.length === 0) {
@@ -230,16 +228,17 @@ function AppContent() {
     }
 
     try {
-      // Optimistic update
       setUsers(prev => [...prev, ...uniqueNewUsers]);
-      
       // Save to DB in parallel
       await Promise.all(uniqueNewUsers.map(u => addUserToDB(u)));
+      // Log the bulk action
+      if (user) {
+        await logUserActivity(user, 'IMPORT', 'User', `Bulk imported ${uniqueNewUsers.length} users via CSV`);
+      }
     } catch (error) {
       console.error("Bulk add error:", error);
-      // In a real app, we might rollback state here
       alert("Some users might not have been saved due to errors.");
-      fetchData(); // Reload to be safe
+      fetchData(); 
     }
   };
 
@@ -247,7 +246,7 @@ function AppContent() {
       if (confirm(t('confirmDeleteUser'))) {
           try {
               setUsers(prev => prev.filter(u => u.id !== id));
-              await deleteUserFromDB(id);
+              await deleteUserFromDB(id, user || undefined); // Pass 'user' for logging
           } catch (error) {
               alert("Error deleting user");
           }
@@ -259,6 +258,9 @@ function AppContent() {
       setIsSeeding(true);
       try {
         await seedDatabase(initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers);
+        if (user) {
+           await logUserActivity(user, 'CREATE', 'System', 'Seeded initial database data');
+        }
         await fetchData(); // Reload data
       } catch (e) {
         alert("Error seeding data");

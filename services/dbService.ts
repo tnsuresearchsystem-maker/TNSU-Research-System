@@ -1,7 +1,7 @@
 
 import { db } from "../firebaseConfig";
-import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc } from "firebase/firestore";
-import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User } from "../types";
+import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy } from "firebase/firestore";
+import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
 
 // Collection Names
 const PROJECTS_COL = "projects";
@@ -11,6 +11,43 @@ const PERSONNEL_COL = "personnel";
 const MOUS_COL = "mous";
 const IPS_COL = "ips";
 const USERS_COL = "users";
+const LOGS_COL = "system_logs";
+
+// --- LOGGING UTILITY ---
+
+export const logUserActivity = async (
+  actor: User, 
+  action: SystemLog['action_type'], 
+  target: SystemLog['target_module'], 
+  details: string
+): Promise<void> => {
+  try {
+    const logEntry: SystemLog = {
+      id: `log_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      actor_id: actor.id,
+      actor_username: actor.username,
+      action_type: action,
+      target_module: target,
+      details: details
+    };
+    await addDoc(collection(db, LOGS_COL), logEntry);
+  } catch (error) {
+    console.error("Failed to write system log:", error);
+    // Don't throw error to prevent blocking main action
+  }
+};
+
+export const getSystemLogs = async (): Promise<SystemLog[]> => {
+  try {
+    const q = query(collection(db, LOGS_COL), orderBy("timestamp", "desc"), limit(100));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ ...doc.data() as SystemLog }));
+  } catch (error) {
+    console.error("Error fetching logs:", error);
+    return [];
+  }
+};
 
 // --- Projects Operations ---
 
@@ -218,7 +255,7 @@ export const getUsersFromDB = async (): Promise<User[]> => {
   }
 };
 
-export const addUserToDB = async (user: User): Promise<void> => {
+export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
   try {
     // Basic check for existing username
     const q = query(collection(db, USERS_COL), where("username", "==", user.username));
@@ -227,13 +264,18 @@ export const addUserToDB = async (user: User): Promise<void> => {
        throw new Error("Username already exists");
     }
     await addDoc(collection(db, USERS_COL), user);
+    
+    // Log the creation
+    if (actor) {
+      await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role})`);
+    }
   } catch (error) {
     console.error("Error adding User:", error);
     throw error;
   }
 };
 
-export const updateUserInDB = async (user: User): Promise<void> => {
+export const updateUserInDB = async (user: User, actor?: User): Promise<void> => {
   try {
     const q = query(collection(db, USERS_COL), where("id", "==", user.id), limit(1));
     const querySnapshot = await getDocs(q);
@@ -241,6 +283,11 @@ export const updateUserInDB = async (user: User): Promise<void> => {
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
       await updateDoc(docRef, { ...user });
+
+      // Log the update
+      if (actor) {
+        await logUserActivity(actor, 'UPDATE', 'User', `Updated user: ${user.username}`);
+      }
     } else {
       console.error("User not found to update:", user.id);
     }
@@ -250,14 +297,20 @@ export const updateUserInDB = async (user: User): Promise<void> => {
   }
 };
 
-export const deleteUserFromDB = async (id: string): Promise<void> => {
+export const deleteUserFromDB = async (id: string, actor?: User): Promise<void> => {
     try {
         const q = query(collection(db, USERS_COL), where("id", "==", id), limit(1));
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
+            const userToDelete = querySnapshot.docs[0].data() as User;
             const docRef = querySnapshot.docs[0].ref;
             await deleteDoc(docRef);
+
+            // Log the deletion
+            if (actor) {
+              await logUserActivity(actor, 'DELETE', 'User', `Deleted user: ${userToDelete.username}`);
+            }
         }
     } catch (error) {
         console.error("Error deleting user:", error);
@@ -276,6 +329,8 @@ export const authenticateUser = async (username: string, password: string): Prom
     const user = snapshot.docs[0].data() as User;
     // Simple password check (In production, use hashed passwords or Firebase Auth)
     if (user.password === password) {
+      // LOG SUCCESSFUL LOGIN
+      await logUserActivity(user, 'LOGIN', 'System', 'User logged in successfully');
       return user;
     }
     return null;

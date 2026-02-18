@@ -1,4 +1,5 @@
 
+
 export enum FiscalYear {
   Y2566 = "2566",
   Y2567 = "2567",
@@ -153,4 +154,15 @@ export interface User {
   email: string;
   organization: Organization; // Stores full Org object for easier context
   role: 'Admin' | 'User';
+}
+
+// --- LOGGING SYSTEM ---
+export interface SystemLog {
+  id: string;
+  timestamp: string; // ISO String
+  actor_id: string;
+  actor_username: string;
+  action_type: 'LOGIN' | 'CREATE' | 'UPDATE' | 'DELETE' | 'IMPORT';
+  target_module: 'User' | 'Project' | 'Publication' | 'Asset' | 'System';
+  details: string;
 }
