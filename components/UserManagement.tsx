@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, SystemLog, OrganizationType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ALL_ORGANIZATIONS } from '../constants';
-import { getSystemLogs } from '../services/dbService';
+import { getSystemLogs, sendUserPasswordResetEmail } from '../services/dbService';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 interface UserManagementProps {
@@ -57,6 +57,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
     }
     
     setLoadingLogs(false);
+  };
+
+  const handleResetPassword = async (email: string) => {
+    if (confirm(`Send password reset email to ${email}?`)) {
+       const result = await sendUserPasswordResetEmail(email);
+       if (result.success) {
+         alert("Password reset email sent successfully.");
+       } else {
+         alert("Error: " + result.message);
+       }
+    }
   };
 
   const filteredUsers = users.filter(u => {
@@ -269,18 +280,29 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={() => onEdit(user)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        {t('edit')}
-                      </button>
-                      <button 
-                        onClick={() => onDelete(user.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        {t('delete')}
-                      </button>
+                      <div className="flex items-center justify-end space-x-3">
+                        <button 
+                          onClick={() => handleResetPassword(user.email)}
+                          className="text-orange-500 hover:text-orange-700 p-1 hover:bg-orange-50 rounded"
+                          title="Reset Password (Email)"
+                        >
+                          <span className="material-icons text-lg">vpn_key</span>
+                        </button>
+                        <button 
+                          onClick={() => onEdit(user)}
+                          className="text-indigo-600 hover:text-indigo-900 p-1 hover:bg-indigo-50 rounded"
+                          title={t('edit')}
+                        >
+                          <span className="material-icons text-lg">edit</span>
+                        </button>
+                        <button 
+                          onClick={() => onDelete(user.id)}
+                          className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
+                          title={t('delete')}
+                        >
+                          <span className="material-icons text-lg">delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )) : (

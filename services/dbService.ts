@@ -1,7 +1,7 @@
 
 import { db, auth } from "../firebaseConfig";
 import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
 import { initialUsers } from "./mockData";
 
@@ -435,6 +435,58 @@ export const authenticateUserLegacy = async (identifier: string, password: strin
   } catch (error) {
     console.error("Legacy Auth Error:", error);
     return null;
+  }
+};
+
+// --- PASSWORD MANAGEMENT ---
+
+// 1. Reset Password (Admin triggered or forgot password)
+export const sendUserPasswordResetEmail = async (email: string): Promise<{ success: boolean; message?: string }> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error sending reset email:", error);
+    if (error.code === 'auth/user-not-found') {
+      return { success: false, message: "User not found in Firebase Auth (Legacy User). Please edit manually." };
+    }
+    return { success: false, message: error.message };
+  }
+};
+
+// 2. Change Password (Logged in User)
+export const changeMyPassword = async (user: User, oldPass: string, newPass: string): Promise<{ success: boolean; message?: string }> => {
+  const currentUser = auth.currentUser;
+  
+  // A: Firebase Auth User
+  if (currentUser && currentUser.email === user.email) {
+    try {
+      // Re-authenticate first
+      const credential = EmailAuthProvider.credential(currentUser, oldPass);
+      await reauthenticateWithCredential(currentUser, credential);
+      
+      // Update Password
+      await updatePassword(currentUser, newPass);
+      
+      // Sync with Firestore (Optional, but keeps legacy field updated)
+      await updateUserInDB({ ...user, password: newPass }, user);
+      await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password');
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error("Change password error:", error);
+      return { success: false, message: error.message || "Failed to update password. Check your old password." };
+    }
+  } 
+  
+  // B: Legacy User (Fallback)
+  else {
+    if (user.password === oldPass) {
+       await updateUserInDB({ ...user, password: newPass }, user);
+       await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password (Legacy)');
+       return { success: true };
+    }
+    return { success: false, message: "Incorrect current password." };
   }
 };
 

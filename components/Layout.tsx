@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LOGO_URL } from '../constants';
+import ChangePasswordModal from './ChangePasswordModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const { t, language, setLanguage } = useLanguage();
   const { user, logout } = useAuth();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const tabs = [
     { id: 'dashboard', label: t('dashboard'), icon: 'dashboard' },
@@ -74,13 +76,23 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 </div>
              </div>
 
-             <button 
-               onClick={logout}
-               className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg flex items-center transition-colors border border-white/10"
-             >
-               <span className="material-icons text-sm mr-2">logout</span>
-               {t('logout')}
-             </button>
+             <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors border border-white/10 text-white"
+                  title="Change Password"
+                >
+                  <span className="material-icons text-sm">vpn_key</span>
+                </button>
+
+                <button 
+                  onClick={logout}
+                  className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg flex items-center transition-colors border border-white/10"
+                >
+                  <span className="material-icons text-sm mr-2">logout</span>
+                  {t('logout')}
+                </button>
+             </div>
           </div>
         </div>
       </header>
@@ -128,6 +140,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </p>
         </div>
       </footer>
+
+      {/* Change Password Modal */}
+      {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
     </div>
   );
 };
