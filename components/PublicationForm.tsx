@@ -31,8 +31,8 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
       return;
     }
     const newPub: PublicationOutput = {
-      output_id: `o_${Math.random().toString(36).substr(2, 6)}`,
-      ...formData as PublicationOutput
+      ...formData as PublicationOutput,
+      output_id: `o_${Math.random().toString(36).substr(2, 6)}`
     };
     onAddPublication(newPub);
   };
@@ -173,7 +173,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
 
         {/* URL Link Input (Google Drive) */}
         <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Link to File (Google Drive / PDF URL)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('fileUrlLabel')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="material-icons text-gray-400">link</span>

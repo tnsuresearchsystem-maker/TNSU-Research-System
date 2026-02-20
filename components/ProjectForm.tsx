@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ProjectMaster, FiscalYear, FundingSource, ResearchCategory, ProjectStatus } from '../types';
 import { FISCAL_YEARS, FUNDING_SOURCES, RESEARCH_CATEGORIES, PROJECT_STATUSES, ALL_ORGANIZATIONS } from '../constants';
@@ -33,8 +34,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
     e.preventDefault();
     const projectToSave: ProjectMaster = {
       // Keep existing ID if editing, otherwise generate new one
-      project_id: initialData?.project_id || `p_${Math.random().toString(36).substr(2, 6)}`,
       ...formData as ProjectMaster,
+      project_id: initialData?.project_id || `p_${Math.random().toString(36).substr(2, 6)}`,
       budget_amount: Number(formData.budget_amount)
     };
     onSave(projectToSave);
@@ -122,7 +123,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
 
         {/* Budget */}
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('budget')} (THB)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('budget')}</label>
           <input 
             type="number" 
             name="budget_amount" 

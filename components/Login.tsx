@@ -125,7 +125,9 @@ const Login: React.FC = () => {
 
             {/* 3. Username */}
             <div className="space-y-1">
-              <label className="block text-sm font-semibold text-gray-700">{t('enterName')}</label>
+              <label className="block text-sm font-semibold text-gray-700">
+                {t('usernameOrEmail')}
+              </label>
               <div className="relative">
                 <input 
                   type="text" 

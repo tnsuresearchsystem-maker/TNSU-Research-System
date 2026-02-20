@@ -12,11 +12,13 @@ import UserManagement from './components/UserManagement';
 import ProjectDetails from './components/ProjectDetails';
 import Chatbot from './components/Chatbot';
 import Login from './components/Login';
+import CSVImportModal from './components/CSVImportModal';
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User } from './types';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, addPublicationToDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
+import { CSVType } from './services/csvService';
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -41,6 +43,7 @@ function AppContent() {
   const [showPersonnelForm, setShowPersonnelForm] = useState(false);
   const [showAssetFormType, setShowAssetFormType] = useState<'mou' | 'ip' | null>(null);
   const [showUserForm, setShowUserForm] = useState(false);
+  const [csvImportType, setCsvImportType] = useState<CSVType | null>(null);
   
   // Selected / Editing States
   const [selectedProject, setSelectedProject] = useState<ProjectMaster | null>(null);
@@ -270,6 +273,45 @@ function AppContent() {
     }
   };
 
+  const handleCSVImport = async (data: any[]) => {
+    try {
+      if (csvImportType === 'project') {
+        await Promise.all(data.map(item => addProjectToDB(item as ProjectMaster)));
+      } else if (csvImportType === 'publication') {
+        await Promise.all(data.map(item => addPublicationToDB(item as PublicationOutput)));
+      } else if (csvImportType === 'utilization') {
+        await Promise.all(data.map(item => addUtilizationToDB(item as Utilization)));
+      } else if (csvImportType === 'personnel') {
+        await Promise.all(data.map(item => addPersonnelToDB(item as PersonnelDevelopment)));
+      } else if (csvImportType === 'mou') {
+        await Promise.all(data.map(item => addMOUToDB(item as MOU)));
+      } else if (csvImportType === 'ip') {
+        await Promise.all(data.map(item => addIPToDB(item as IntellectualProperty)));
+      } else if (csvImportType === 'user') {
+        // Users are handled specially in handleBulkAddUsers, but we can reuse logic or call it here
+        // For simplicity, let's just use the existing logic if possible, or reimplement
+        // Since handleBulkAddUsers does extra checks, let's just call it if we can, or copy logic.
+        // But handleBulkAddUsers expects User[], data is any[].
+        const newUsers = data as User[];
+        const uniqueNewUsers = newUsers.filter(nu => !users.some(u => u.username === nu.username));
+        if (uniqueNewUsers.length > 0) {
+           await Promise.all(uniqueNewUsers.map(u => addUserToDB(u, user)));
+        }
+      }
+
+      if (user) {
+        await logUserActivity(user, 'IMPORT', 'System', `Bulk imported ${data.length} records for ${csvImportType}`);
+      }
+      
+      alert(`Successfully imported ${data.length} records.`);
+      setCsvImportType(null);
+      fetchData();
+    } catch (error) {
+      console.error("Import error:", error);
+      alert("Error importing data. Please check the console and your CSV format.");
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -320,13 +362,22 @@ function AppContent() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('projects')}</h2>
-             <button 
-              onClick={() => { setEditingProject(null); setShowProjectForm(true); }}
-              className="bg-tnsu-green-600 hover:bg-tnsu-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-             >
-               <span className="material-icons mr-2">add</span>
-               {t('addProject')}
-             </button>
+             <div className="flex space-x-3">
+               <button 
+                 onClick={() => setCsvImportType('project')}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
+                 {t('importCsv') || 'Import CSV'}
+               </button>
+               <button 
+                onClick={() => { setEditingProject(null); setShowProjectForm(true); }}
+                className="bg-tnsu-green-600 hover:bg-tnsu-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
+               >
+                 <span className="material-icons mr-2">add</span>
+                 {t('addProject')}
+               </button>
+             </div>
           </div>
           
           <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
@@ -395,13 +446,22 @@ function AppContent() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('publications')}</h2>
-             <button 
-              onClick={() => setShowPubForm(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-             >
-               <span className="material-icons mr-2">add</span>
-               {t('addPub')}
-             </button>
+             <div className="flex space-x-3">
+               <button 
+                 onClick={() => setCsvImportType('publication')}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
+                 {t('importCsv') || 'Import CSV'}
+               </button>
+               <button 
+                onClick={() => setShowPubForm(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
+               >
+                 <span className="material-icons mr-2">add</span>
+                 {t('addPub')}
+               </button>
+             </div>
           </div>
 
           <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
@@ -467,13 +527,22 @@ function AppContent() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('personnel')}</h2>
-             <button 
-              onClick={() => { setEditingPersonnel(null); setShowPersonnelForm(true); }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-             >
-               <span className="material-icons mr-2">add</span>
-               {t('addPersonnel')}
-             </button>
+             <div className="flex space-x-3">
+               <button 
+                 onClick={() => setCsvImportType('personnel')}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
+                 {t('importCsv') || 'Import CSV'}
+               </button>
+               <button 
+                onClick={() => { setEditingPersonnel(null); setShowPersonnelForm(true); }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
+               >
+                 <span className="material-icons mr-2">add</span>
+                 {t('addPersonnel')}
+               </button>
+             </div>
           </div>
 
           <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
@@ -561,13 +630,22 @@ function AppContent() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('utilization')}</h2>
-             <button 
-              onClick={() => { setEditingUtilization(null); setShowUtilForm(true); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-             >
-               <span className="material-icons mr-2">add</span>
-               {t('addUtil')}
-             </button>
+             <div className="flex space-x-3">
+               <button 
+                 onClick={() => setCsvImportType('utilization')}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
+                 {t('importCsv') || 'Import CSV'}
+               </button>
+               <button 
+                onClick={() => { setEditingUtilization(null); setShowUtilForm(true); }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
+               >
+                 <span className="material-icons mr-2">add</span>
+                 {t('addUtil')}
+               </button>
+             </div>
           </div>
 
           {/* Search Bar */}
@@ -680,6 +758,24 @@ function AppContent() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">{t('ip_mou')}</h2>
               <div className="flex space-x-3">
+                 <div className="flex space-x-2 border-r border-gray-300 pr-3 mr-1">
+                    <button 
+                      onClick={() => setCsvImportType('mou')}
+                      className="bg-white border border-gray-200 hover:bg-gray-50 text-purple-700 px-3 py-2 rounded-lg flex items-center shadow-sm transition-colors text-sm"
+                      title="Import MOU CSV"
+                    >
+                      <span className="material-icons mr-1.5 text-base">upload_file</span>
+                      MOU
+                    </button>
+                    <button 
+                      onClick={() => setCsvImportType('ip')}
+                      className="bg-white border border-gray-200 hover:bg-gray-50 text-pink-700 px-3 py-2 rounded-lg flex items-center shadow-sm transition-colors text-sm"
+                      title="Import IP CSV"
+                    >
+                      <span className="material-icons mr-1.5 text-base">upload_file</span>
+                      IP
+                    </button>
+                 </div>
                  <button 
                   onClick={() => setShowAssetFormType('mou')}
                   className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center shadow-md transition-colors text-sm"
@@ -800,6 +896,13 @@ function AppContent() {
     <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSelectedProject(null); setShowAssetFormType(null); setShowUserForm(false); }}>
       {renderContent()}
       <Chatbot projects={projects} publications={publications} />
+      {csvImportType && (
+        <CSVImportModal 
+          type={csvImportType} 
+          onImport={handleCSVImport} 
+          onClose={() => setCsvImportType(null)} 
+        />
+      )}
     </Layout>
   );
 }

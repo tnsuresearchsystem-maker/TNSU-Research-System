@@ -15,6 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const { t, language, setLanguage } = useLanguage();
   const { user, logout } = useAuth();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const tabs = [
     { id: 'dashboard', label: t('dashboard'), icon: 'dashboard' },
@@ -33,113 +34,184 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Header */}
-      <header className="bg-tnsu-green-800 text-white shadow-xl relative overflow-hidden">
-        {/* Decorative circle */}
-        <div className="absolute -right-20 -top-20 w-64 h-64 bg-tnsu-green-700 rounded-full opacity-50 blur-3xl"></div>
-
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between relative z-10">
+      <header className="bg-white shadow-sm border-b border-gray-200 z-30 relative">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-white p-1 rounded-full shadow-md">
-               <img src={LOGO_URL} alt="TNSU Logo" className="w-10 h-10 object-contain" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">{t('appTitle')}</h1>
-              <p className="text-tnsu-green-200 text-xs font-light">{t('appSubtitle')}</p>
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 lg:hidden"
+            >
+              <span className="material-icons">menu</span>
+            </button>
+            <div className="flex items-center space-x-3">
+              <div className="bg-tnsu-green-50 p-1.5 rounded-lg">
+                 <img src={LOGO_URL} alt="TNSU Logo" className="w-8 h-8 object-contain" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-800 leading-tight hidden sm:block">{t('appTitle')}</h1>
+                <p className="text-tnsu-green-600 text-xs font-medium hidden sm:block">{t('appSubtitle')}</p>
+              </div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4">
              {/* Language Switcher */}
-             <div className="flex bg-tnsu-green-900/50 rounded-full p-1 backdrop-blur-sm">
+             <div className="flex bg-gray-100 rounded-lg p-1">
                 <button 
                   onClick={() => setLanguage('th')} 
-                  className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${language === 'th' ? 'bg-white text-tnsu-green-800 shadow-sm' : 'text-tnsu-green-200 hover:text-white'}`}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${language === 'th' ? 'bg-white text-tnsu-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   TH
                 </button>
                 <button 
                   onClick={() => setLanguage('en')} 
-                  className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${language === 'en' ? 'bg-white text-tnsu-green-800 shadow-sm' : 'text-tnsu-green-200 hover:text-white'}`}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${language === 'en' ? 'bg-white text-tnsu-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                   EN
                 </button>
              </div>
 
              {/* User Profile */}
-             <div className="text-right hidden md:block border-r border-tnsu-green-600 pr-6">
-                <div className="text-sm font-bold text-white flex items-center justify-end">
-                   {user?.username}
-                   <span className="ml-2 px-1.5 py-0.5 bg-tnsu-yellow-500 text-tnsu-green-900 text-[10px] rounded uppercase font-bold">{user?.role}</span>
+             <div className="flex items-center pl-4 border-l border-gray-200 space-x-3">
+                <div className="text-right hidden md:block">
+                   <div className="text-sm font-bold text-gray-800 flex items-center justify-end">
+                      {user?.username}
+                      <span className="ml-2 px-1.5 py-0.5 bg-tnsu-green-100 text-tnsu-green-800 text-[10px] rounded uppercase font-bold tracking-wider">{user?.role}</span>
+                   </div>
+                   <div className="text-xs text-gray-500 font-medium">
+                     {language === 'th' ? user?.organization.nameTh : user?.organization.nameEn}
+                   </div>
                 </div>
-                <div className="text-xs text-tnsu-yellow-400 font-medium">
-                  {language === 'th' ? user?.organization.nameTh : user?.organization.nameEn}
+                
+                <div className="relative group">
+                  <button className="w-9 h-9 rounded-full bg-tnsu-green-600 text-white flex items-center justify-center shadow-sm hover:bg-tnsu-green-700 transition-colors">
+                    <span className="material-icons text-lg">person</span>
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 hidden group-hover:block transform transition-all origin-top-right z-50">
+                    <button
+                      onClick={() => setIsChangePasswordOpen(true)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                    >
+                      <span className="material-icons text-gray-400 text-sm mr-2">vpn_key</span>
+                      Change Password
+                    </button>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button 
+                      onClick={logout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <span className="material-icons text-red-400 text-sm mr-2">logout</span>
+                      {t('logout')}
+                    </button>
+                  </div>
                 </div>
-             </div>
-
-             <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setIsChangePasswordOpen(true)}
-                  className="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors border border-white/10 text-white"
-                  title="Change Password"
-                >
-                  <span className="material-icons text-sm">vpn_key</span>
-                </button>
-
-                <button 
-                  onClick={logout}
-                  className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg flex items-center transition-colors border border-white/10"
-                >
-                  <span className="material-icons text-sm mr-2">logout</span>
-                  {t('logout')}
-                </button>
              </div>
           </div>
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-20">
-        <div className="container mx-auto px-6">
-          <div className="flex space-x-8 overflow-x-auto">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar Navigation */}
+        <aside 
+          className={`
+            bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-300 ease-in-out
+            ${isSidebarOpen ? 'w-64' : 'w-20'}
+            hidden lg:flex flex-col
+          `}
+        >
+          <div className="p-4 space-y-2 flex-1 overflow-y-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-[3px] font-medium transition-all duration-200 whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'border-tnsu-green-500 text-tnsu-green-700'
-                    : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200'
-                }`}
+                className={`
+                  w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
+                  ${activeTab === tab.id 
+                    ? 'bg-tnsu-green-50 text-tnsu-green-700 font-semibold shadow-sm ring-1 ring-tnsu-green-200' 
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }
+                `}
+                title={!isSidebarOpen ? tab.label : ''}
               >
-                <span className={`material-icons text-xl ${activeTab === tab.id ? 'text-tnsu-green-500' : 'text-gray-400'}`}>{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span className={`material-icons text-xl ${activeTab === tab.id ? 'text-tnsu-green-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                  {tab.icon}
+                </span>
+                {isSidebarOpen && <span>{tab.label}</span>}
+                
+                {/* Active Indicator Strip */}
+                {activeTab === tab.id && (
+                  <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-tnsu-green-600 rounded-r-full"></div>
+                )}
               </button>
             ))}
           </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="flex-grow container mx-auto px-6 py-8">
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-8 mt-auto">
-        <div className="container mx-auto px-6 text-center">
-          <div className="flex justify-center space-x-4 mb-4">
-             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-tnsu-green-50 hover:text-tnsu-green-600 transition-colors cursor-pointer">
-                <span className="material-icons text-sm">facebook</span>
-             </div>
-             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-tnsu-green-50 hover:text-tnsu-green-600 transition-colors cursor-pointer">
-                <span className="material-icons text-sm">language</span>
-             </div>
+          
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t border-gray-100">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <span className="material-icons">
+                {isSidebarOpen ? 'chevron_left' : 'chevron_right'}
+              </span>
+            </button>
           </div>
-          <p className="text-gray-500 text-sm font-light">
-            &copy; {new Date().getFullYear()} {t('appSubtitle')}. All rights reserved.
-          </p>
+        </aside>
+
+        {/* Mobile Sidebar Overlay */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+        )}
+
+        {/* Mobile Sidebar */}
+        <div className={`
+          fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+           <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+             <span className="font-bold text-gray-800">Menu</span>
+             <button onClick={() => setIsSidebarOpen(false)} className="text-gray-500">
+               <span className="material-icons">close</span>
+             </button>
+           </div>
+           <div className="p-4 space-y-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }}
+                className={`
+                  w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200
+                  ${activeTab === tab.id 
+                    ? 'bg-tnsu-green-50 text-tnsu-green-700 font-semibold' 
+                    : 'text-gray-500 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <span className="material-icons text-xl">{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+           </div>
         </div>
-      </footer>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto bg-gray-50/50 p-6 lg:p-8 relative">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+          
+          {/* Footer */}
+          <footer className="mt-12 py-6 border-t border-gray-200 text-center text-sm text-gray-400">
+            <p>&copy; {new Date().getFullYear()} {t('appSubtitle')}. All rights reserved.</p>
+          </footer>
+        </main>
+      </div>
 
       {/* Change Password Modal */}
       {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}

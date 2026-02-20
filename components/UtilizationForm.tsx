@@ -41,8 +41,8 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
     }
 
     const newUtil: Utilization = {
-      id: initialData?.id || `u_${Math.random().toString(36).substr(2, 6)}`,
-      ...formData as Utilization
+      ...formData as Utilization,
+      id: initialData?.id || `u_${Math.random().toString(36).substr(2, 6)}`
     };
     onSave(newUtil);
   };
@@ -160,7 +160,7 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
 
         {/* URL Input */}
         <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadCert')} (Evidence URL)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('evidenceUrlLabel')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="material-icons text-gray-400">link</span>

@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, Organization } from '../types';
-import { loginWithFirebase, logoutUser, getUsersFromDB } from '../services/dbService';
+import { loginWithFirebase, logoutUser, getUserByEmail } from '../services/dbService';
 import { auth } from '../firebaseConfig';
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -21,12 +21,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Persistent Session Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
+      if (firebaseUser && firebaseUser.email) {
         // User is signed in, fetch their profile from Firestore
-        // We need to match the firebaseUser.email with our Firestore users collection
+        // Use optimized query that targets specific email to avoid "missing permissions" on full list
         try {
-           const users = await getUsersFromDB();
-           const userProfile = users.find(u => u.email === firebaseUser.email);
+           const userProfile = await getUserByEmail(firebaseUser.email);
            if (userProfile) {
              setUser(userProfile);
            } else {
@@ -49,13 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (identifier: string, password: string, organization: Organization): Promise<boolean> => {
     // Use the new Firebase Auth Service
-    // Note: identifier can be username OR email for the legacy fallback, 
-    // but Firebase Auth strictly needs EMAIL. 
-    // If the user enters a username (e.g. 'admin'), we might fail Firebase Auth unless we map it.
-    // For this implementation, we assume the user enters EMAIL for Firebase Auth, 
-    // or the fallback handles the username.
-    
-    // Strategy: Try login. The service handles fallback to legacy DB check if needed.
     const authUser = await loginWithFirebase(identifier, password);
     
     if (authUser) {

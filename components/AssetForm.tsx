@@ -31,14 +31,14 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
     e.preventDefault();
     if (type === 'mou' && onSaveMOU) {
       const newMOU: MOU = {
-        id: `mou_${Math.random().toString(36).substr(2, 6)}`,
-        ...mouData as MOU
+        ...mouData as MOU,
+        id: `mou_${Math.random().toString(36).substr(2, 6)}`
       };
       onSaveMOU(newMOU);
     } else if (type === 'ip' && onSaveIP) {
        const newIP: IntellectualProperty = {
-         id: `ip_${Math.random().toString(36).substr(2, 6)}`,
-         ...ipData as IntellectualProperty
+         ...ipData as IntellectualProperty,
+         id: `ip_${Math.random().toString(36).substr(2, 6)}`
        };
        onSaveIP(newIP);
     }

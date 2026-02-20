@@ -173,7 +173,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
 
         {/* URL Input */}
         <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{t('certificate')} / Report (URL)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('certUrlLabel')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="material-icons text-gray-400">link</span>
