@@ -1,10 +1,11 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, SystemLog, OrganizationType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ALL_ORGANIZATIONS } from '../constants';
 import { getSystemLogs, sendUserPasswordResetEmail } from '../services/dbService';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import CSVImportModal from './CSVImportModal';
 
 interface UserManagementProps {
   users: User[];
@@ -19,15 +20,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
   const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL'); // New Filter State
-  const [isImporting, setIsImporting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   
   // Pagination State for Logs
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [lastLogDoc, setLastLogDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeTab === 'logs' && logs.length === 0) {
@@ -60,12 +59,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
   };
 
   const handleResetPassword = async (email: string) => {
-    if (confirm(`Send password reset email to ${email}?`)) {
+    if (confirm(t('confirmResetPassword').replace('{email}', email))) {
        const result = await sendUserPasswordResetEmail(email);
        if (result.success) {
-         alert("Password reset email sent successfully.");
+         alert(t('resetPasswordSuccess'));
        } else {
-         alert("Error: " + result.message);
+         alert(t('resetPasswordError') + result.message);
        }
     }
   };
@@ -81,17 +80,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
     return matchesSearch && matchesType;
   });
 
-  const handleDownloadTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,Username,Email,Role (Admin/User),Organization ID\nuser1,user1@tnsu.ac.th,User,c_chiangmai\nadmin2,admin2@tnsu.ac.th,Admin,c_bangkok";
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "tnsu_users_template.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const findOrganization = (idOrName: string) => {
     const term = idOrName.trim().toLowerCase();
     return ALL_ORGANIZATIONS.find(org => 
@@ -101,56 +89,31 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
     );
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImportUsers = async (data: any[]) => {
+    const newUsers: User[] = [];
+    for (const row of data) {
+      // Basic validation
+      if (!row.username || !row.email || !row.role || !row.campus_id) continue;
 
-    setIsImporting(true);
-    const reader = new FileReader();
-    
-    reader.onload = async (evt) => {
-      try {
-        const text = evt.target?.result as string;
-        const rows = text.split('\n').slice(1); // Skip header
-        const newUsers: User[] = [];
-
-        for (const row of rows) {
-          if (!row.trim()) continue;
-          
-          const cols = row.split(',').map(c => c.trim());
-          if (cols.length < 4) continue;
-
-          const [username, email, roleStr, orgStr] = cols;
-          const org = findOrganization(orgStr);
-
-          if (username && email && org) {
-            newUsers.push({
-              id: `user_${Math.random().toString(36).substr(2, 9)}`,
-              username,
-              email,
-              role: roleStr.toLowerCase() === 'admin' ? 'Admin' : 'User',
-              password: 'TNSU1234', // Default password
-              organization: org
-            });
-          }
-        }
-
-        if (newUsers.length > 0) {
-          await onBulkAdd(newUsers);
-          alert(`${t('importSuccess')} (${newUsers.length} users)`);
-        } else {
-          alert(t('importError'));
-        }
-      } catch (error) {
-        console.error(error);
-        alert(t('importError'));
-      } finally {
-        setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+      const org = findOrganization(row.campus_id);
+      if (org) {
+        newUsers.push({
+          id: `user_${Math.random().toString(36).substr(2, 9)}`,
+          username: row.username,
+          email: row.email,
+          role: row.role.toLowerCase() === 'admin' ? 'Admin' : 'User',
+          password: 'TNSU1234', // Default password
+          organization: org
+        });
       }
-    };
+    }
 
-    reader.readAsText(file);
+    if (newUsers.length > 0) {
+      await onBulkAdd(newUsers);
+      alert(`${t('importSuccess')} (${newUsers.length} users)`);
+    } else {
+      alert(t('importError'));
+    }
   };
 
   return (
@@ -204,34 +167,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
              
              <div className="flex space-x-3">
                 <button 
-                  onClick={handleDownloadTemplate}
-                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 text-sm flex items-center transition-colors"
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm flex items-center transition-colors shadow-sm"
                 >
-                  <span className="material-icons text-base mr-2">download</span>
-                  <span className="hidden lg:inline">{t('downloadTemplate')}</span>
+                  <span className="material-icons text-base mr-2">upload_file</span>
+                  <span className="hidden lg:inline">{t('importCsv')}</span>
                 </button>
-
-                <div className="relative">
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isImporting}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm flex items-center transition-colors disabled:opacity-50"
-                  >
-                    {isImporting ? (
-                      <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                    ) : (
-                      <span className="material-icons text-base mr-2">upload_file</span>
-                    )}
-                    <span className="hidden lg:inline">{isImporting ? t('processing') : t('importCsv')}</span>
-                  </button>
-                </div>
 
                 <button 
                   onClick={onAdd}
@@ -308,7 +249,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                 )) : (
                    <tr>
                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
-                       No users found matching filters.
+                       {t('noUsersFound')}
                      </td>
                    </tr>
                 )}
@@ -324,7 +265,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                <span className="material-icons text-gray-500 mr-2">list_alt</span>
                {t('systemLogs')}
              </h3>
-             <button onClick={() => fetchLogs(true)} className="text-sm text-blue-600 hover:underline">Refresh</button>
+             <button onClick={() => fetchLogs(true)} className="text-sm text-blue-600 hover:underline">{t('refresh')}</button>
           </div>
           
           <table className="min-w-full divide-y divide-gray-200">
@@ -358,7 +299,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
               )) : (
                 !loadingLogs && (
                   <tr>
-                    <td colSpan={4} className="p-6 text-center text-gray-400">No logs found.</td>
+                    <td colSpan={4} className="p-6 text-center text-gray-400">{t('noLogsFound')}</td>
                   </tr>
                 )
               )}
@@ -376,13 +317,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                 {loadingLogs ? (
                     <>
                         <span className="animate-spin h-4 w-4 border-2 border-tnsu-green-600 border-t-transparent rounded-full mr-2"></span>
-                        Loading...
+                        {t('loading')}
                     </>
-                ) : 'Load More Logs'}
+                ) : t('loadMoreLogs')}
               </button>
             </div>
           )}
         </div>
+      )}
+      
+      {showImportModal && (
+        <CSVImportModal
+          type="user"
+          onImport={handleImportUsers}
+          onClose={() => setShowImportModal(false)}
+        />
       )}
     </div>
   );

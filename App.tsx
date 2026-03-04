@@ -14,11 +14,12 @@ import Chatbot from './components/Chatbot';
 import Login from './components/Login';
 import CSVImportModal from './components/CSVImportModal';
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User } from './types';
+import { FISCAL_YEARS } from './constants';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, addPublicationToDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
+import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
-import { CSVType } from './services/csvService';
+import { CSVType, exportToCSV } from './services/csvService';
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -54,6 +55,7 @@ function AppContent() {
   
   // Search States
   const [utilSearchQuery, setUtilSearchQuery] = useState('');
+  const [filterFiscalYear, setFilterFiscalYear] = useState<string>('');
 
   // Fetch Data function
   const fetchData = async () => {
@@ -273,6 +275,22 @@ function AppContent() {
     }
   };
 
+  const handleDeleteProject = async (project: ProjectMaster) => {
+    if (window.confirm(t('confirmDeleteProject'))) {
+      try {
+        await deleteProjectFromDB(project.project_id);
+        setProjects(prev => prev.filter(p => p.project_id !== project.project_id));
+        // Log activity
+        if (user) {
+          await logUserActivity(user, 'DELETE', 'Project', `Deleted project: ${project.project_name}`);
+        }
+      } catch (error) {
+        console.error("Failed to delete project:", error);
+        alert(t('deleteError'));
+      }
+    }
+  };
+
   const handleCSVImport = async (data: any[]) => {
     try {
       if (csvImportType === 'project') {
@@ -326,6 +344,9 @@ function AppContent() {
         <Dashboard 
           projects={projects} 
           publications={publications} 
+          personnel={personnel}
+          mous={mous}
+          ips={ips}
           onSeedData={handleSeedData}
           isSeeding={isSeeding}
         />
@@ -358,17 +379,41 @@ function AppContent() {
         );
       }
 
+      // Filter logic
+      const filteredProjects = projects.filter(p => {
+        if (filterFiscalYear && p.funding_fiscal_year !== filterFiscalYear) return false;
+        return true;
+      });
+
       return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('projects')}</h2>
              <div className="flex space-x-3">
+               {/* Fiscal Year Filter */}
+               <select
+                 value={filterFiscalYear}
+                 onChange={(e) => setFilterFiscalYear(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allYears')}</option>
+                 {FISCAL_YEARS.map(year => (
+                   <option key={year} value={year}>{year}</option>
+                 ))}
+               </select>
                <button 
                  onClick={() => setCsvImportType('project')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
                >
                  <span className="material-icons mr-2 text-gray-500">upload_file</span>
                  {t('importCsv') || 'Import CSV'}
+               </button>
+               <button 
+                 onClick={() => exportToCSV(filteredProjects, 'project', `projects_export_${new Date().toISOString().split('T')[0]}.csv`)}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">download</span>
+                 {t('exportCsv') || 'Export CSV'}
                </button>
                <button 
                 onClick={() => { setEditingProject(null); setShowProjectForm(true); }}
@@ -394,7 +439,7 @@ function AppContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {projects.map(p => (
+                {filteredProjects.map(p => (
                   <tr 
                     key={p.project_id} 
                     onClick={() => setSelectedProject(p)}
@@ -406,7 +451,10 @@ function AppContent() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-tnsu-green-800">
                       <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md">{p.funding_fiscal_year}</span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{p.project_name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                      <div>{p.project_name}</div>
+                      {p.project_name_en && <div className="text-xs text-gray-500 font-light">{p.project_name_en}</div>}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{p.campus_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.head_researcher}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -428,6 +476,21 @@ function AppContent() {
                         <span className="material-icons text-sm mr-1.5 text-tnsu-green-600">edit</span>
                         {t('edit')}
                       </button>
+                      
+                      {/* Delete Button (Only if no linked data) */}
+                      {!(publications.some(pub => pub.ref_project_id === p.project_id) || utilizations.some(u => u.ref_project_id === p.project_id)) && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProject(p);
+                          }}
+                          className="inline-flex items-center px-3 py-1.5 border border-red-200 shadow-sm text-xs font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none transition-all z-10 relative ml-2"
+                          title={t('delete')}
+                        >
+                          <span className="material-icons text-sm mr-1.5 text-red-600">delete</span>
+                          {t('delete')}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -442,17 +505,42 @@ function AppContent() {
       if (showPubForm) {
         return <PublicationForm projects={projects} onAddPublication={handleAddPublication} onCancel={() => setShowPubForm(false)} />;
       }
+      
+      // Filter logic
+      const filteredPublications = publications.filter(pub => {
+        if (filterFiscalYear && pub.output_reporting_year !== filterFiscalYear) return false;
+        return true;
+      });
+
       return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('publications')}</h2>
              <div className="flex space-x-3">
+               {/* Fiscal Year Filter */}
+               <select
+                 value={filterFiscalYear}
+                 onChange={(e) => setFilterFiscalYear(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allYears')}</option>
+                 {FISCAL_YEARS.map(year => (
+                   <option key={year} value={year}>{year}</option>
+                 ))}
+               </select>
                <button 
                  onClick={() => setCsvImportType('publication')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
                >
                  <span className="material-icons mr-2 text-gray-500">upload_file</span>
                  {t('importCsv') || 'Import CSV'}
+               </button>
+               <button 
+                 onClick={() => exportToCSV(filteredPublications, 'publication', `publications_export_${new Date().toISOString().split('T')[0]}.csv`)}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">download</span>
+                 {t('exportCsv') || 'Export CSV'}
                </button>
                <button 
                 onClick={() => setShowPubForm(true)}
@@ -475,7 +563,7 @@ function AppContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {publications.map(pub => {
+                {filteredPublications.map(pub => {
                   const project = projects.find(p => p.project_id === pub.ref_project_id);
                   return (
                     <tr key={pub.output_id} className="hover:bg-gray-50 transition-colors">
@@ -523,11 +611,28 @@ function AppContent() {
         );
       }
 
+      // Filter logic
+      const filteredPersonnel = personnel.filter(pd => {
+        if (filterFiscalYear && pd.fiscal_year !== filterFiscalYear) return false;
+        return true;
+      });
+
       return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('personnel')}</h2>
              <div className="flex space-x-3">
+               {/* Fiscal Year Filter */}
+               <select
+                 value={filterFiscalYear}
+                 onChange={(e) => setFilterFiscalYear(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allYears')}</option>
+                 {FISCAL_YEARS.map(year => (
+                   <option key={year} value={year}>{year}</option>
+                 ))}
+               </select>
                <button 
                  onClick={() => setCsvImportType('personnel')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -558,7 +663,7 @@ function AppContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {personnel.map(pd => (
+                {filteredPersonnel.map(pd => (
                   <tr key={pd.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-700">
                       <span className="bg-indigo-50 px-2 py-1 rounded border border-indigo-100">{pd.fiscal_year}</span>
@@ -619,11 +724,13 @@ function AppContent() {
       const filteredUtilizations = utilizations.filter(ut => {
         const project = projects.find(p => p.project_id === ut.ref_project_id);
         const term = utilSearchQuery.toLowerCase();
-        return (
+        const matchesSearch = (
           ut.description.toLowerCase().includes(term) ||
           ut.utilization_type.toLowerCase().includes(term) ||
           (project && project.project_name.toLowerCase().includes(term))
         );
+        const matchesYear = filterFiscalYear ? ut.utilization_reporting_year === filterFiscalYear : true;
+        return matchesSearch && matchesYear;
       });
 
       return (
@@ -631,6 +738,17 @@ function AppContent() {
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('utilization')}</h2>
              <div className="flex space-x-3">
+               {/* Fiscal Year Filter */}
+               <select
+                 value={filterFiscalYear}
+                 onChange={(e) => setFilterFiscalYear(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allYears')}</option>
+                 {FISCAL_YEARS.map(year => (
+                   <option key={year} value={year}>{year}</option>
+                 ))}
+               </select>
                <button 
                  onClick={() => setCsvImportType('utilization')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -753,11 +871,33 @@ function AppContent() {
          );
        }
 
+       // Filter logic
+       const filteredMOUs = mous.filter(m => {
+         if (filterFiscalYear && m.fiscal_year !== filterFiscalYear) return false;
+         return true;
+       });
+       
+       const filteredIPs = ips.filter(i => {
+         if (filterFiscalYear && i.fiscal_year !== filterFiscalYear) return false;
+         return true;
+       });
+
        return (
          <div className="space-y-8 animate-fade-in-up">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">{t('ip_mou')}</h2>
               <div className="flex space-x-3">
+                 {/* Fiscal Year Filter */}
+                 <select
+                   value={filterFiscalYear}
+                   onChange={(e) => setFilterFiscalYear(e.target.value)}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+                 >
+                   <option value="">{t('allYears')}</option>
+                   {FISCAL_YEARS.map(year => (
+                     <option key={year} value={year}>{year}</option>
+                   ))}
+                 </select>
                  <div className="flex space-x-2 border-r border-gray-300 pr-3 mr-1">
                     <button 
                       onClick={() => setCsvImportType('mou')}
@@ -810,7 +950,7 @@ function AppContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {mous.map(m => (
+                    {filteredMOUs.map(m => (
                       <tr key={m.id} className="hover:bg-purple-50/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-purple-700">{m.fiscal_year}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{m.external_org_name}</td>
@@ -842,7 +982,7 @@ function AppContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                     {ips.map(ip => (
+                     {filteredIPs.map(ip => (
                       <tr key={ip.id} className="hover:bg-pink-50/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-pink-700">{ip.fiscal_year}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{ip.work_name}</td>

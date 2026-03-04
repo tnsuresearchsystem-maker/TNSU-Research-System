@@ -19,7 +19,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
     funding_fiscal_year: FiscalYear.Y2568,
     status: ProjectStatus.Ongoing,
     funding_source: FundingSource.Internal,
-    research_category: ResearchCategory.SportsScience,
+    research_category: ResearchCategory.SportsScienceHealth,
     // Default to user's organization if adding new
     campus_id: user?.organization.nameEn || '' 
   });
@@ -95,9 +95,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
           </select>
         </div>
 
-        {/* Project Name */}
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectName')}</label>
+        {/* Project Name (Thai) */}
+        <div className="col-span-2 md:col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectNameTh')}</label>
           <input 
             type="text" 
             name="project_name" 
@@ -105,6 +105,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
             onChange={handleChange}
             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 transition-all hover:border-tnsu-green-300"
             required
+            placeholder="ระบุชื่อโครงการภาษาไทย"
+          />
+        </div>
+
+        {/* Project Name (English) */}
+        <div className="col-span-2 md:col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectNameEn')}</label>
+          <input 
+            type="text" 
+            name="project_name_en" 
+            value={formData.project_name_en || ''} 
+            onChange={handleChange}
+            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 transition-all hover:border-tnsu-green-300"
+            placeholder="Enter Project Name in English"
           />
         </div>
 
@@ -139,14 +153,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('fundingSource')}</label>
           <select name="funding_source" value={formData.funding_source} onChange={handleChange} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500">
-            {FUNDING_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            {FUNDING_SOURCES.map(s => <option key={s} value={s}>{t(s)}</option>)}
           </select>
         </div>
 
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('category')}</label>
           <select name="research_category" value={formData.research_category} onChange={handleChange} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500">
-            {RESEARCH_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {RESEARCH_CATEGORIES.map(c => <option key={c} value={c}>{t(c)}</option>)}
           </select>
         </div>
 

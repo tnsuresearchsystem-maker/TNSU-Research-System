@@ -1,6 +1,12 @@
 
 
 export enum FiscalYear {
+  Y2560 = "2560",
+  Y2561 = "2561",
+  Y2562 = "2562",
+  Y2563 = "2563",
+  Y2564 = "2564",
+  Y2565 = "2565",
   Y2566 = "2566",
   Y2567 = "2567",
   Y2568 = "2568",
@@ -15,9 +21,9 @@ export enum FundingSource {
 }
 
 export enum ResearchCategory {
-  SportsScience = "Sports Science",
-  Teaching = "Teaching",
-  Others = "Others",
+  SportsScienceHealth = "Faculty of Sports Science and Health",
+  LiberalArts = "Faculty of Liberal Arts",
+  Education = "Faculty of Education",
 }
 
 export enum ProjectStatus {
@@ -64,7 +70,8 @@ export interface ProjectMaster {
   project_id: string;
   funding_fiscal_year: FiscalYear;
   campus_id: string; // Used generically for Organization Name
-  project_name: string;
+  project_name: string; // Thai Name
+  project_name_en?: string; // English Name (Optional for backward compat, but we will add it)
   head_researcher: string;
   budget_amount: number;
   funding_source: FundingSource;
@@ -111,6 +118,7 @@ export interface MOU {
   sign_date: string;
   scope: string;
   fiscal_year: FiscalYear;
+  campus_id?: string; // Optional for backward compatibility, but should be used
 }
 
 export interface IntellectualProperty {
@@ -120,6 +128,7 @@ export interface IntellectualProperty {
   request_number: string; // เลขที่คำขอ หรือ เลขทะเบียน
   registration_date: string;
   fiscal_year: FiscalYear;
+  campus_id?: string; // Optional for backward compatibility
 }
 
 // Chat types

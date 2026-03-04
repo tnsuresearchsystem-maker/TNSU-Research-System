@@ -2,7 +2,7 @@ import Papa from 'papaparse';
 
 export type CSVType = 'project' | 'publication' | 'utilization' | 'personnel' | 'mou' | 'ip' | 'user';
 
-const HEADERS: Record<CSVType, string[]> = {
+export const HEADERS: Record<CSVType, string[]> = {
   project: [
     'project_id', 'funding_fiscal_year', 'campus_id', 'project_name', 
     'head_researcher', 'budget_amount', 'funding_source', 'research_category', 'status'
@@ -25,13 +25,66 @@ const HEADERS: Record<CSVType, string[]> = {
     'fiscal_year', 'work_name', 'ip_type', 'request_number', 'registration_date'
   ],
   user: [
-    'username', 'email', 'role', 'organization_name_th', 'organization_name_en', 'organization_type'
+    'username', 'email', 'role', 'campus_id'
   ]
+};
+
+const EXAMPLES: Record<CSVType, any[]> = {
+  project: [{
+    project_id: 'p_12345', funding_fiscal_year: '2568', campus_id: 'c_chiangmai', 
+    project_name: 'Example Project', head_researcher: 'Dr. Somchai', 
+    budget_amount: 50000, funding_source: 'Internal', research_category: 'Sports Science', status: 'Ongoing'
+  }],
+  publication: [{
+    ref_project_id: 'p_12345', output_reporting_year: '2568', article_title: 'Example Article',
+    publication_level: 'National', publication_type: 'TCI 1', is_published: 'TRUE'
+  }],
+  utilization: [{
+    ref_project_id: 'p_12345', utilization_reporting_year: '2568', utilization_type: 'Academic', description: 'Used in curriculum'
+  }],
+  personnel: [{
+    fiscal_year: '2568', staff_name: 'Somying', organization_name: 'c_bangkok', development_type: 'Training',
+    course_name: 'Advanced Research', activity_date: '2025-01-15', duration_hours: 6
+  }],
+  mou: [{
+    fiscal_year: '2568', external_org_name: 'SAT', sign_date: '2025-02-01', scope: 'Academic Exchange'
+  }],
+  ip: [{
+    fiscal_year: '2568', work_name: 'New Device', ip_type: 'Patent', request_number: '123456', registration_date: '2025-03-01'
+  }],
+  user: [{
+    username: 'user1', email: 'user1@tnsu.ac.th', role: 'User', campus_id: 'c_chiangmai'
+  }]
 };
 
 export const generateTemplate = (type: CSVType): string => {
   const headers = HEADERS[type];
-  return Papa.unparse([headers]); // Creates a CSV with just the header row
+  const example = EXAMPLES[type];
+  return Papa.unparse({
+    fields: headers,
+    data: example
+  });
+};
+
+export const exportToCSV = <T>(data: T[], type: CSVType, filename: string) => {
+  const headers = HEADERS[type];
+  
+  // Filter data to only include fields in headers
+  const filteredData = data.map(item => {
+    const row: any = {};
+    headers.forEach(header => {
+      // @ts-ignore
+      row[header] = item[header] !== undefined ? item[header] : '';
+    });
+    return row;
+  });
+
+  const csv = Papa.unparse({
+    fields: headers,
+    data: filteredData
+  });
+
+  downloadCSV(csv, filename);
 };
 
 export const parseCSV = <T>(file: File): Promise<T[]> => {

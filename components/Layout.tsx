@@ -4,6 +4,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { LOGO_URL } from '../constants';
 import ChangePasswordModal from './ChangePasswordModal';
+import UserManual from './UserManual';
+import FeedbackModal from './FeedbackModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const { user, logout } = useAuth();
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isManualOpen, setIsManualOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   const tabs = [
     { id: 'dashboard', label: t('dashboard'), icon: 'dashboard' },
@@ -55,6 +59,24 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </div>
           
           <div className="flex items-center space-x-4">
+             {/* Help & Feedback Buttons */}
+             <div className="hidden md:flex space-x-2">
+               <button 
+                 onClick={() => setIsManualOpen(true)}
+                 className="p-2 text-gray-400 hover:text-tnsu-green-600 hover:bg-tnsu-green-50 rounded-full transition-colors"
+                 title={t('userManual')}
+               >
+                 <span className="material-icons">help_outline</span>
+               </button>
+               <button 
+                 onClick={() => setIsFeedbackOpen(true)}
+                 className="p-2 text-gray-400 hover:text-tnsu-green-600 hover:bg-tnsu-green-50 rounded-full transition-colors"
+                 title={t('feedback')}
+               >
+                 <span className="material-icons">rate_review</span>
+               </button>
+             </div>
+
              {/* Language Switcher */}
              <div className="flex bg-gray-100 rounded-lg p-1">
                 <button 
@@ -132,13 +154,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                     ? 'bg-tnsu-green-50 text-tnsu-green-700 font-semibold shadow-sm ring-1 ring-tnsu-green-200' 
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                   }
+                  ${!isSidebarOpen ? 'justify-center px-2' : ''}
                 `}
                 title={!isSidebarOpen ? tab.label : ''}
               >
                 <span className={`material-icons text-xl ${activeTab === tab.id ? 'text-tnsu-green-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
                   {tab.icon}
                 </span>
-                {isSidebarOpen && <span>{tab.label}</span>}
+                
+                <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 hidden'}`}>
+                  {tab.label}
+                </span>
                 
                 {/* Active Indicator Strip */}
                 {activeTab === tab.id && (
@@ -153,9 +179,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
+              title={isSidebarOpen ? "Collapse Menu" : "Expand Menu"}
             >
-              <span className="material-icons">
-                {isSidebarOpen ? 'chevron_left' : 'chevron_right'}
+              <span className="material-icons transform transition-transform duration-300" style={{ transform: isSidebarOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}>
+                chevron_left
               </span>
             </button>
           </div>
@@ -215,6 +242,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
       {/* Change Password Modal */}
       {isChangePasswordOpen && <ChangePasswordModal onClose={() => setIsChangePasswordOpen(false)} />}
+      
+      {/* User Manual Modal */}
+      {isManualOpen && <UserManual section={activeTab} onClose={() => setIsManualOpen(false)} />}
+      
+      {/* Feedback Modal */}
+      {isFeedbackOpen && <FeedbackModal onClose={() => setIsFeedbackOpen(false)} />}
     </div>
   );
 };

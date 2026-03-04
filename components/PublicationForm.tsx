@@ -27,7 +27,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.ref_project_id) {
-      alert("Please link a project source.");
+      alert(t('linkProjectSourceAlert'));
       return;
     }
     const newPub: PublicationOutput = {
@@ -43,6 +43,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
 
   const filteredProjects = projects.filter(p => 
     p.project_name.toLowerCase().includes(searchProject.toLowerCase()) || 
+    (p.project_name_en && p.project_name_en.toLowerCase().includes(searchProject.toLowerCase())) ||
     p.head_researcher.toLowerCase().includes(searchProject.toLowerCase()) ||
     p.project_id.includes(searchProject)
   );
@@ -55,7 +56,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
             <span className="material-icons mr-2">playlist_add</span>
             {t('addPub')}
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Link an output to its original funding source (Cross-Year Mapping)</p>
+          <p className="text-gray-500 text-sm mt-1">{t('linkProjectDesc')}</p>
         </div>
         
         <div className="flex items-center bg-tnsu-yellow-50 px-4 py-2 rounded-lg border border-tnsu-yellow-100">
@@ -78,6 +79,21 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
           </label>
         </div>
       </div>
+
+      {!historicalMode && (
+        <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <span className="material-icons text-red-500">info</span>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700 font-bold">
+                {t('currentYearNote')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
@@ -120,7 +136,7 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
 
           <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-inner">
              {filteredProjects.length === 0 ? (
-               <div className="p-6 text-center text-gray-500 text-sm">No projects found matching your search.</div>
+               <div className="p-6 text-center text-gray-500 text-sm">{t('noProjectsFound')}</div>
              ) : (
                filteredProjects.map(p => (
                  <div 
@@ -130,13 +146,14 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
                  >
                     <div>
                       <div className="font-semibold text-gray-800 text-sm">{p.project_name}</div>
+                      {p.project_name_en && <div className="text-xs text-gray-500 font-light">{p.project_name_en}</div>}
                       <div className="text-xs text-gray-500 mt-0.5">
                         <span className="material-icons text-[10px] align-middle mr-0.5">person</span>
                         {p.head_researcher} <span className="mx-1">•</span> ID: {p.project_id}
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
-                       <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">Funded: {p.funding_fiscal_year}</span>
+                       <span className="text-xs font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">{t('fundedLabel')}{p.funding_fiscal_year}</span>
                     </div>
                  </div>
                ))
@@ -184,10 +201,10 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
                 value={formData.file_url || ''}
                 onChange={handleChange}
                 className="w-full pl-10 border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
-                placeholder="https://drive.google.com/file/d/..."
+                placeholder={t('urlPlaceholder')}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">Paste a link to your document (e.g., Google Drive, Dropbox, or Website).</p>
+            <p className="text-xs text-gray-500 mt-1">{t('pasteLinkHint')}</p>
         </div>
         
         {/* Buttons */}

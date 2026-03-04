@@ -166,6 +166,12 @@ const Login: React.FC = () => {
             >
               {loading ? <span className="animate-pulse">Checking...</span> : t('loginButton')}
             </button>
+            
+            <div className="mt-4 text-center text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100">
+              <p className="font-semibold mb-1 text-gray-700">{t('needAccess')}</p>
+              <p>{t('needAccessDesc')} <span className="font-bold text-tnsu-green-700">{t('mainAdmin')}</span>.</p>
+              <p className="mt-1 text-[10px] text-gray-400">{t('restrictedAccess')}</p>
+            </div>
           </form>
        </div>
        

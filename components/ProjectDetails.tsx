@@ -76,14 +76,22 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-tnsu-green-700 to-tnsu-green-600 px-6 py-4">
             <div className="flex justify-between items-start">
-                <h3 className="text-xl font-bold text-white leading-tight pr-4">{project.project_name}</h3>
+                <div>
+                  <h3 className="text-xl font-bold text-white leading-tight pr-4">{project.project_name}</h3>
+                  {project.project_name_en && (
+                    <p className="text-white/80 text-sm mt-1 font-light">{project.project_name_en}</p>
+                  )}
+                </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-white/20 ${
                     project.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                 }`}>
                     {project.status}
                 </span>
             </div>
-            <p className="text-green-100 text-sm mt-1">{project.campus_id}</p>
+            <p className="text-green-100 text-sm mt-2 flex items-center">
+              <span className="material-icons text-[14px] mr-1">domain</span>
+              {project.campus_id}
+            </p>
         </div>
         
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -110,11 +118,11 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
             </div>
              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-xs text-gray-500 uppercase font-semibold mb-1">{t('fundingSource')}</p>
-                <p className="text-gray-800 font-medium">{project.funding_source}</p>
+                <p className="text-gray-800 font-medium">{t(project.funding_source)}</p>
             </div>
              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-xs text-gray-500 uppercase font-semibold mb-1">{t('category')}</p>
-                <p className="text-gray-800 font-medium">{project.research_category}</p>
+                <p className="text-gray-800 font-medium">{t(project.research_category)}</p>
             </div>
         </div>
       </div>

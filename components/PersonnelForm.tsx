@@ -37,7 +37,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
     
     // Basic Validation
     if (!formData.staff_name || !formData.course_name || !formData.organization_name) {
-      alert("Please fill in all required fields.");
+      alert(t('fillRequiredFields'));
       return;
     }
 
@@ -105,7 +105,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
             value={formData.staff_name || ''} 
             onChange={handleChange}
             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5"
-            placeholder="e.g. Dr. Somchai Jai-dee"
+            placeholder={t('staffNamePlaceholder')}
             required
           />
         </div>
@@ -138,7 +138,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
             value={formData.course_name || ''} 
             onChange={handleChange}
             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5"
-            placeholder="e.g. Advanced Sports Analytics Workshop"
+            placeholder={t('courseNamePlaceholder')}
             required
           />
         </div>
@@ -184,7 +184,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
                 value={formData.certificate_url || ''}
                 onChange={handleChange}
                 className="w-full pl-10 border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
-                placeholder="https://drive.google.com/..."
+                placeholder={t('urlPlaceholder')}
               />
             </div>
         </div>

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { MOU, IntellectualProperty, FiscalYear, IPType } from '../types';
-import { FISCAL_YEARS, IP_TYPES } from '../constants';
+import { FISCAL_YEARS, IP_TYPES, ALL_ORGANIZATIONS } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface AssetFormProps {
@@ -12,19 +12,21 @@ interface AssetFormProps {
 }
 
 const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCancel }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // MOU State
   const [mouData, setMouData] = useState<Partial<MOU>>({
     fiscal_year: FiscalYear.Y2568,
-    sign_date: new Date().toISOString().split('T')[0]
+    sign_date: new Date().toISOString().split('T')[0],
+    campus_id: ALL_ORGANIZATIONS[0].id // Default to first org
   });
 
   // IP State
   const [ipData, setIpData] = useState<Partial<IntellectualProperty>>({
     fiscal_year: FiscalYear.Y2568,
     ip_type: IPType.Patent,
-    registration_date: new Date().toISOString().split('T')[0]
+    registration_date: new Date().toISOString().split('T')[0],
+    campus_id: ALL_ORGANIZATIONS[0].id // Default to first org
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,6 +65,23 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
             required
           >
             {FISCAL_YEARS.map(year => <option key={year} value={year}>{year}</option>)}
+          </select>
+        </div>
+
+        {/* Organization (Common) */}
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('campusOrg')}</label>
+          <select 
+            value={type === 'mou' ? mouData.campus_id : ipData.campus_id} 
+            onChange={(e) => type === 'mou' ? setMouData({...mouData, campus_id: e.target.value}) : setIpData({...ipData, campus_id: e.target.value})}
+            className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-purple-500 focus:border-purple-500"
+            required
+          >
+            {ALL_ORGANIZATIONS.map(org => (
+              <option key={org.id} value={org.id}>
+                {language === 'th' ? org.nameTh : org.nameEn}
+              </option>
+            ))}
           </select>
         </div>
 

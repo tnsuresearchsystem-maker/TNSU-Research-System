@@ -1,6 +1,6 @@
 
 import { db, auth } from "../firebaseConfig";
-import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, setDoc, doc } from "firebase/firestore";
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword } from "firebase/auth";
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
 import { initialUsers } from "./mockData";
@@ -51,6 +51,12 @@ export const getSystemLogs = async (
   lastVisible: QueryDocumentSnapshot<DocumentData> | null = null,
   pageSize: number = 20
 ): Promise<{ logs: SystemLog[], lastDoc: QueryDocumentSnapshot<DocumentData> | null }> => {
+  // FIX: If not authenticated with Firebase, we cannot read Firestore logs protected by security rules.
+  if (!auth.currentUser) {
+    // console.warn("Skipping log fetch: User is not authenticated with Firebase.");
+    return { logs: [], lastDoc: null };
+  }
+
   try {
     let q;
     
@@ -322,6 +328,11 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 
 export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
   try {
+    // Check if we are in Legacy Mode (Unauthenticated)
+    if (!auth.currentUser) {
+        throw new Error("Write Access Denied: You are logged in via Legacy Mode. Please contact support to sync your account with Firebase Auth.");
+    }
+
     // Check for existing username in Firestore
     const q = query(collection(db, USERS_COL), where("username", "==", user.username));
     const snapshot = await getDocs(q);
@@ -404,13 +415,13 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
         }
     } catch (err: any) {
         // Handle "Missing or insufficient permissions" or User not found
-        console.warn("DB Username lookup failed (permission or missing). Switching to Mock Data Fallback.");
+        // console.warn("DB Username lookup failed (permission or missing). Switching to Mock Data Fallback.");
         
         // Fallback: Check Mock Data
         // This is crucial for initial login if rules block unauthenticated reads
         const mockUser = initialUsers.find(u => u.username === identifier);
         if (mockUser) {
-            console.log("Resolved username via Mock Data");
+            // console.log("Resolved username via Mock Data");
             email = mockUser.email;
         } else {
             // If we can't resolve the username, and it's not an email, we fail.
@@ -433,11 +444,22 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
     // FIX START: If Auth succeeds but Firestore profile is missing (e.g. Permission denied, or DB empty),
     // we fallback to Mock Data so the hardcoded Admin can still enter.
     if (!userProfile) {
-         console.warn("Auth successful, but Firestore profile not found (or locked). Checking Mock Data for fallback profile...");
+         // console.warn("Auth successful, but Firestore profile not found (or locked). Checking Mock Data for fallback profile...");
          const mockUser = initialUsers.find(u => u.email === email);
          if (mockUser) {
-             console.log("Found profile in Mock Data. Using Mock Profile.");
+             // console.log("Found profile in Mock Data. Using Mock Profile.");
              userProfile = mockUser;
+             
+             // Attempt to SYNC this profile to Firestore so rules work next time
+             try {
+                 await setDoc(doc(db, USERS_COL, firebaseUser.uid), {
+                     ...mockUser,
+                     id: firebaseUser.uid // Use Auth UID as Document ID
+                 });
+                 console.log("Synced mock profile to Firestore for authenticated user.");
+             } catch (syncErr) {
+                 console.warn("Failed to sync profile to Firestore (likely permission denied):", syncErr);
+             }
          }
     }
     // FIX END
@@ -452,13 +474,18 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
     }
   } catch (error: any) {
     // 4. MIGRATION / FALLBACK LOGIC:
-    console.error("Firebase Auth failed:", error.code);
-
     const isAuthError = 
         error.code === 'auth/user-not-found' || 
         error.code === 'auth/invalid-credential' || 
         error.code === 'auth/invalid-login-credentials' || 
         error.code === 'auth/wrong-password';
+
+    if (isAuthError) {
+        // Suppress error log for expected auth failures that we handle via fallback
+        console.warn(`Firebase Auth failed (${error.code}). Attempting legacy fallback...`);
+    } else {
+        console.error("Firebase Auth failed:", error);
+    }
 
     // If Auth fails, try to validate against our Legacy/Mock system
     if (isAuthError) {
@@ -467,8 +494,16 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
             try {
                 // Try to Auto-Register in Firebase Auth to enable persistence for next time
                 console.log("Attempting to migrate legacy user to Firebase Auth...");
-                await createUserWithEmailAndPassword(auth, email, pass);
-                await logUserActivity(userProfile, 'UPDATE', 'System', 'Auto-migrated user to Firebase Auth');
+                const newCred = await createUserWithEmailAndPassword(auth, email, pass);
+                
+                // CRITICAL FIX: Create Firestore Document for the new Auth User
+                // This ensures security rules (which check request.auth.uid) can find the user's role
+                await setDoc(doc(db, USERS_COL, newCred.user.uid), {
+                    ...userProfile,
+                    id: newCred.user.uid // Use Auth UID as Document ID
+                });
+                
+                await logUserActivity(userProfile, 'UPDATE', 'System', 'Auto-migrated user to Firebase Auth & Firestore');
             } catch (createErr: any) {
                 // If create fails (e.g. email exists but password was wrong previously), 
                 // we just ignore it and let them in via Legacy mode.

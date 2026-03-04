@@ -95,11 +95,11 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
             name="password" 
             value={formData.password || ''} 
             onChange={handleChange}
-            placeholder={initialData ? "******** (Leave empty to keep)" : "Set password"}
+            placeholder={initialData ? t('passwordPlaceholderEdit') : t('passwordPlaceholderNew')}
             className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
             required={!initialData}
           />
-          {initialData && <p className="text-xs text-blue-500 mt-1">Enter new password only if you want to reset it.</p>}
+          {initialData && <p className="text-xs text-blue-500 mt-1">{t('passwordResetHint')}</p>}
         </div>
 
         {/* Role */}
