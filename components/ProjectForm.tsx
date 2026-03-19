@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ProjectMaster, FiscalYear, FundingSource, ResearchCategory, ProjectStatus } from '../types';
+import { ProjectMaster, FiscalYear, FundingSource, ResearchCategory, ProjectStatus, ApprovalStatus, ReportingPeriod } from '../types';
 import { FISCAL_YEARS, FUNDING_SOURCES, RESEARCH_CATEGORIES, PROJECT_STATUSES, ALL_ORGANIZATIONS } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +21,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
     funding_source: FundingSource.Internal,
     research_category: ResearchCategory.SportsScienceHealth,
     // Default to user's organization if adding new
-    campus_id: user?.organization.nameEn || '' 
+    campus_id: user?.organization.nameEn || '',
+    approval_status: ApprovalStatus.Draft
   });
 
   useEffect(() => {
@@ -36,7 +37,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
       // Keep existing ID if editing, otherwise generate new one
       ...formData as ProjectMaster,
       project_id: initialData?.project_id || `p_${Math.random().toString(36).substr(2, 6)}`,
-      budget_amount: Number(formData.budget_amount)
+      budget_amount: Number(formData.budget_amount),
+      approval_status: formData.approval_status || ApprovalStatus.Draft
     };
     onSave(projectToSave);
   };
@@ -44,6 +46,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  const isAdmin = user?.role === 'Admin';
 
   return (
     <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 animate-fade-in-up">
@@ -56,11 +60,56 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
         
         {/* Project ID (Read-only if editing) */}
         {initialData && (
-          <div className="col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2">
-            <p className="text-xs text-gray-500 uppercase font-bold">Project ID</p>
-            <p className="text-gray-700 font-mono">{initialData.project_id}</p>
+          <div className="col-span-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2 flex justify-between items-center">
+            <div>
+              <p className="text-xs text-gray-500 uppercase font-bold">Project ID</p>
+              <p className="text-gray-700 font-mono">{initialData.project_id}</p>
+            </div>
+            <div className={`px-3 py-1 rounded-full text-sm font-bold border ${
+              formData.approval_status === ApprovalStatus.Approved ? 'bg-green-100 text-green-700 border-green-200' :
+              formData.approval_status === ApprovalStatus.Pending ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+              formData.approval_status === ApprovalStatus.Rejected ? 'bg-red-100 text-red-700 border-red-200' :
+              'bg-gray-100 text-gray-700 border-gray-200'
+            }`}>
+              {formData.approval_status || 'Draft'}
+            </div>
           </div>
         )}
+
+        {/* Approval Status (Visible to all, editable based on role) */}
+        <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <label className="block text-sm font-bold text-blue-800 mb-2">Workflow Status</label>
+          <div className="flex items-center space-x-4">
+            <select
+              name="approval_status"
+              value={formData.approval_status || ApprovalStatus.Draft}
+              onChange={handleChange}
+              className="flex-1 border-blue-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 border p-2.5"
+            >
+              <option value={ApprovalStatus.Draft}>{ApprovalStatus.Draft}</option>
+              <option value={ApprovalStatus.Pending}>{ApprovalStatus.Pending}</option>
+              {isAdmin && (
+                <>
+                  <option value={ApprovalStatus.Approved}>{ApprovalStatus.Approved}</option>
+                  <option value={ApprovalStatus.Rejected}>{ApprovalStatus.Rejected}</option>
+                  <option value={ApprovalStatus.RequestChange}>{ApprovalStatus.RequestChange}</option>
+                </>
+              )}
+              {!isAdmin && formData.approval_status === ApprovalStatus.Approved && (
+                <option value={ApprovalStatus.Approved} disabled>{ApprovalStatus.Approved}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Rejected && (
+                <option value={ApprovalStatus.Rejected} disabled>{ApprovalStatus.Rejected}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.RequestChange && (
+                <option value={ApprovalStatus.RequestChange} disabled>{ApprovalStatus.RequestChange}</option>
+              )}
+            </select>
+            <div className="text-xs text-blue-600">
+              {isAdmin ? 'Admin: You can change status to any value.' : 'User: Submit for review when ready.'}
+            </div>
+          </div>
+        </div>
 
         {/* Funding Year */}
         <div className="col-span-1">
@@ -76,8 +125,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
           </select>
         </div>
 
-        {/* Campus/Organization */}
+        {/* Reporting Period */}
         <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('reportingPeriod') || 'Reporting Period'}</label>
+          <select 
+            name="reporting_period" 
+            value={formData.reporting_period || ''} 
+            onChange={handleChange}
+            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 transition-all hover:border-tnsu-green-300"
+            required
+          >
+            <option value="">{t('selectReportingPeriod') || 'Select Period'}</option>
+            <option value={ReportingPeriod.Round6Months}>{ReportingPeriod.Round6Months}</option>
+            <option value={ReportingPeriod.Round12Months}>{ReportingPeriod.Round12Months}</option>
+          </select>
+        </div>
+
+        {/* Campus/Organization */}
+        <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('campusOrg')}</label>
           <select 
             name="campus_id" 

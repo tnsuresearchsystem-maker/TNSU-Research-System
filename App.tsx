@@ -13,11 +13,11 @@ import ProjectDetails from './components/ProjectDetails';
 import Chatbot from './components/Chatbot';
 import Login from './components/Login';
 import CSVImportModal from './components/CSVImportModal';
-import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User } from './types';
-import { FISCAL_YEARS } from './constants';
+import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, ReportingPeriod } from './types';
+import { FISCAL_YEARS, ALL_ORGANIZATIONS, REGIONS } from './constants';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
+import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
 import { CSVType, exportToCSV } from './services/csvService';
 
@@ -51,11 +51,15 @@ function AppContent() {
   const [editingProject, setEditingProject] = useState<ProjectMaster | null>(null);
   const [editingUtilization, setEditingUtilization] = useState<Utilization | null>(null);
   const [editingPersonnel, setEditingPersonnel] = useState<PersonnelDevelopment | null>(null);
+  const [editingPublication, setEditingPublication] = useState<PublicationOutput | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
   // Search States
   const [utilSearchQuery, setUtilSearchQuery] = useState('');
   const [filterFiscalYear, setFilterFiscalYear] = useState<string>('');
+  const [filterCampus, setFilterCampus] = useState<string>('');
+  const [filterReportingPeriod, setFilterReportingPeriod] = useState<string>('');
+  const [filterRegion, setFilterRegion] = useState<string>('');
 
   // Fetch Data function
   const fetchData = async () => {
@@ -129,13 +133,25 @@ function AppContent() {
     }
   };
 
-  const handleAddPublication = async (newPub: PublicationOutput) => {
-    try {
-      setPublications(prev => [...prev, newPub]);
-      setShowPubForm(false);
-      await addPublicationToDB(newPub);
-    } catch (error) {
-      alert("Error saving publication to database.");
+  const handleSavePublication = async (pub: PublicationOutput) => {
+    if (editingPublication) {
+      try {
+        setPublications(prev => prev.map(p => p.output_id === pub.output_id ? pub : p));
+        setShowPubForm(false);
+        setEditingPublication(null);
+        await updatePublicationInDB(pub);
+      } catch (error) {
+        alert("Error updating publication in database.");
+        fetchData();
+      }
+    } else {
+      try {
+        setPublications(prev => [...prev, pub]);
+        setShowPubForm(false);
+        await addPublicationToDB(pub);
+      } catch (error) {
+        alert("Error saving publication to database.");
+      }
     }
   };
 
@@ -382,6 +398,17 @@ function AppContent() {
       // Filter logic
       const filteredProjects = projects.filter(p => {
         if (filterFiscalYear && p.funding_fiscal_year !== filterFiscalYear) return false;
+        if (filterCampus && p.campus_id !== filterCampus) return false;
+        if (filterReportingPeriod && p.reporting_period !== filterReportingPeriod) return false;
+        
+        if (filterRegion) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.campus_id);
+          if (!org || org.region !== filterRegion) return false;
+        }
+
+        // If not admin, only show projects from their own campus
+        if (user?.role !== 'Admin' && p.campus_id !== user?.organization.nameEn) return false;
+        
         return true;
       });
 
@@ -390,6 +417,53 @@ function AppContent() {
           <div className="flex justify-between items-center">
              <h2 className="text-2xl font-bold text-gray-800">{t('projects')}</h2>
              <div className="flex space-x-3">
+               {/* Region Filter (Admin only) */}
+               {user?.role === 'Admin' && (
+                 <select
+                   value={filterRegion}
+                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allRegions') || 'All Regions'}</option>
+                   {REGIONS.map(region => (
+                     <option key={region} value={region}>
+                       {language === 'th' ? 
+                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
+                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
+                          region === 'Central Region' ? 'ภาคกลาง' : 
+                          region === 'Southern Region' ? 'ภาคใต้' : region) 
+                         : region}
+                     </option>
+                   ))}
+                 </select>
+               )}
+               {/* Campus Filter (Admin only) */}
+               {user?.role === 'Admin' && (
+                 <select
+                   value={filterCampus}
+                   onChange={(e) => setFilterCampus(e.target.value)}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allOrgs') || 'All Organizations'}</option>
+                   {ALL_ORGANIZATIONS
+                     .filter(org => !filterRegion || org.region === filterRegion)
+                     .map(org => (
+                     <option key={org.id} value={org.nameEn}>
+                       {language === 'th' ? org.nameTh : org.nameEn}
+                     </option>
+                   ))}
+                 </select>
+               )}
+               {/* Reporting Period Filter */}
+               <select
+                 value={filterReportingPeriod}
+                 onChange={(e) => setFilterReportingPeriod(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allPeriods') || 'All Periods'}</option>
+                 <option value={ReportingPeriod.Round6Months}>{ReportingPeriod.Round6Months}</option>
+                 <option value={ReportingPeriod.Round12Months}>{ReportingPeriod.Round12Months}</option>
+               </select>
                {/* Fiscal Year Filter */}
                <select
                  value={filterFiscalYear}
@@ -431,6 +505,7 @@ function AppContent() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('fiscalYear')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('reportingPeriod') || 'Reporting Period'}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('projectName')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('researcher')}</th>
@@ -450,6 +525,9 @@ function AppContent() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-tnsu-green-800">
                       <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md">{p.funding_fiscal_year}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {p.reporting_period || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 font-medium">
                       <div>{p.project_name}</div>
@@ -503,7 +581,14 @@ function AppContent() {
 
     if (activeTab === 'publications') {
       if (showPubForm) {
-        return <PublicationForm projects={projects} onAddPublication={handleAddPublication} onCancel={() => setShowPubForm(false)} />;
+        return (
+          <PublicationForm 
+            projects={projects} 
+            onSave={handleSavePublication} 
+            onCancel={() => { setShowPubForm(false); setEditingPublication(null); }} 
+            initialData={editingPublication}
+          />
+        );
       }
       
       // Filter logic
@@ -543,8 +628,8 @@ function AppContent() {
                  {t('exportCsv') || 'Export CSV'}
                </button>
                <button 
-                onClick={() => setShowPubForm(true)}
-                className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
+                 onClick={() => { setEditingPublication(null); setShowPubForm(true); }}
+                 className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
                >
                  <span className="material-icons mr-2">add</span>
                  {t('addPub')}
@@ -560,6 +645,7 @@ function AppContent() {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('linkProject')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('title')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('type')}</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -589,6 +675,18 @@ function AppContent() {
                       <td className="px-6 py-4 text-sm text-gray-900">{pub.article_title}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span className="bg-gray-100 px-2 py-1 rounded text-gray-600 text-xs font-medium">{pub.publication_type}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          onClick={() => {
+                            setEditingPublication(pub);
+                            setShowPubForm(true);
+                          }}
+                          className="text-gray-400 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 rounded-full p-2"
+                          title={t('edit')}
+                        >
+                          <span className="material-icons text-lg">edit</span>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -633,6 +731,13 @@ function AppContent() {
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
+               <button 
+                 onClick={() => exportToCSV(filteredPersonnel, 'personnel', `personnel_${new Date().toISOString().split('T')[0]}`)}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">download</span>
+                 {t('exportCsv') || 'Export CSV'}
+               </button>
                <button 
                  onClick={() => setCsvImportType('personnel')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -749,6 +854,13 @@ function AppContent() {
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
+               <button 
+                 onClick={() => exportToCSV(filteredUtilizations, 'utilization', `utilization_${new Date().toISOString().split('T')[0]}`)}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">download</span>
+                 {t('exportCsv') || 'Export CSV'}
+               </button>
                <button 
                  onClick={() => setCsvImportType('utilization')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -900,12 +1012,28 @@ function AppContent() {
                  </select>
                  <div className="flex space-x-2 border-r border-gray-300 pr-3 mr-1">
                     <button 
+                      onClick={() => exportToCSV(filteredMOUs, 'mou', `mou_${new Date().toISOString().split('T')[0]}`)}
+                      className="bg-white border border-gray-200 hover:bg-gray-50 text-purple-700 px-3 py-2 rounded-lg flex items-center shadow-sm transition-colors text-sm"
+                      title="Export MOU CSV"
+                    >
+                      <span className="material-icons mr-1.5 text-base">download</span>
+                      MOU
+                    </button>
+                    <button 
                       onClick={() => setCsvImportType('mou')}
                       className="bg-white border border-gray-200 hover:bg-gray-50 text-purple-700 px-3 py-2 rounded-lg flex items-center shadow-sm transition-colors text-sm"
                       title="Import MOU CSV"
                     >
                       <span className="material-icons mr-1.5 text-base">upload_file</span>
                       MOU
+                    </button>
+                    <button 
+                      onClick={() => exportToCSV(filteredIPs, 'ip', `ip_${new Date().toISOString().split('T')[0]}`)}
+                      className="bg-white border border-gray-200 hover:bg-gray-50 text-pink-700 px-3 py-2 rounded-lg flex items-center shadow-sm transition-colors text-sm"
+                      title="Export IP CSV"
+                    >
+                      <span className="material-icons mr-1.5 text-base">download</span>
+                      IP
                     </button>
                     <button 
                       onClick={() => setCsvImportType('ip')}

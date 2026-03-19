@@ -170,6 +170,23 @@ export const addPublicationToDB = async (pub: PublicationOutput): Promise<void> 
   }
 };
 
+export const updatePublicationInDB = async (pub: PublicationOutput): Promise<void> => {
+  try {
+    const q = query(collection(db, PUBLICATIONS_COL), where("output_id", "==", pub.output_id), limit(1));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await updateDoc(docRef, { ...pub });
+    } else {
+      console.error("Publication not found to update:", pub.output_id);
+    }
+  } catch (error) {
+    console.error("Error updating publication:", error);
+    throw error;
+  }
+};
+
 // --- Utilizations Operations ---
 
 export const getUtilizationsFromDB = async (): Promise<Utilization[]> => {

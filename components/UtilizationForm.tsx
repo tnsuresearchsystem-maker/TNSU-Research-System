@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { ProjectMaster, Utilization, FiscalYear, UtilizationType } from '../types';
+import { ProjectMaster, Utilization, FiscalYear, UtilizationType, ApprovalStatus } from '../types';
 import { FISCAL_YEARS, UTILIZATION_TYPES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UtilizationFormProps {
   projects: ProjectMaster[];
@@ -13,12 +14,14 @@ interface UtilizationFormProps {
 
 const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onCancel, initialData }) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   
   const [formData, setFormData] = useState<Partial<Utilization>>({
     utilization_reporting_year: FiscalYear.Y2568,
     utilization_type: UtilizationType.Academic,
     description: '',
-    evidence_url: ''
+    evidence_url: '',
+    approval_status: ApprovalStatus.Draft
   });
 
   const [searchProject, setSearchProject] = useState("");
@@ -42,7 +45,8 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
 
     const newUtil: Utilization = {
       ...formData as Utilization,
-      id: initialData?.id || `u_${Math.random().toString(36).substr(2, 6)}`
+      id: initialData?.id || `u_${Math.random().toString(36).substr(2, 6)}`,
+      approval_status: formData.approval_status || ApprovalStatus.Draft
     };
     onSave(newUtil);
   };
@@ -58,6 +62,8 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
     p.project_id.includes(searchProject)
   );
 
+  const isAdmin = user?.role === 'Admin';
+
   return (
     <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 animate-fade-in-up">
       <div className="flex justify-between items-start mb-6">
@@ -72,6 +78,41 @@ const UtilizationForm: React.FC<UtilizationFormProps> = ({ projects, onSave, onC
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* Approval Status */}
+        <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <label className="block text-sm font-bold text-blue-800 mb-2">Workflow Status</label>
+          <div className="flex items-center space-x-4">
+            <select
+              name="approval_status"
+              value={formData.approval_status || ApprovalStatus.Draft}
+              onChange={handleChange}
+              className="flex-1 border-blue-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 border p-2.5"
+            >
+              <option value={ApprovalStatus.Draft}>{ApprovalStatus.Draft}</option>
+              <option value={ApprovalStatus.Pending}>{ApprovalStatus.Pending}</option>
+              {isAdmin && (
+                <>
+                  <option value={ApprovalStatus.Approved}>{ApprovalStatus.Approved}</option>
+                  <option value={ApprovalStatus.Rejected}>{ApprovalStatus.Rejected}</option>
+                  <option value={ApprovalStatus.RequestChange}>{ApprovalStatus.RequestChange}</option>
+                </>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Approved && (
+                <option value={ApprovalStatus.Approved} disabled>{ApprovalStatus.Approved}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Rejected && (
+                <option value={ApprovalStatus.Rejected} disabled>{ApprovalStatus.Rejected}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.RequestChange && (
+                <option value={ApprovalStatus.RequestChange} disabled>{ApprovalStatus.RequestChange}</option>
+              )}
+            </select>
+            <div className="text-xs text-blue-600">
+              {isAdmin ? 'Admin: You can change status to any value.' : 'User: Submit for review when ready.'}
+            </div>
+          </div>
+        </div>
+
         {/* Project Link - Search */}
         <div className="col-span-2 p-5 bg-blue-50/50 rounded-xl border border-blue-100">
           <label className="block text-sm font-bold text-blue-900 mb-2">

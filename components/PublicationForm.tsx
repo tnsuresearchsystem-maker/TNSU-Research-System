@@ -1,17 +1,20 @@
 
-import React, { useState } from 'react';
-import { ProjectMaster, PublicationOutput, FiscalYear, PublicationLevel, PublicationType } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ProjectMaster, PublicationOutput, FiscalYear, PublicationLevel, PublicationType, ApprovalStatus } from '../types';
 import { FISCAL_YEARS, PUBLICATION_LEVELS, PUBLICATION_TYPES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PublicationFormProps {
   projects: ProjectMaster[];
-  onAddPublication: (pub: PublicationOutput) => void;
+  onSave: (pub: PublicationOutput) => void;
   onCancel: () => void;
+  initialData?: PublicationOutput | null;
 }
 
-const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublication, onCancel }) => {
+const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onSave, onCancel, initialData }) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [historicalMode, setHistoricalMode] = useState(false);
   
   const [formData, setFormData] = useState<Partial<PublicationOutput>>({
@@ -19,10 +22,18 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     is_published: true,
     publication_level: PublicationLevel.National,
     publication_type: PublicationType.TCI1,
-    file_url: '' // Changed to store URL string
+    file_url: '',
+    approval_status: ApprovalStatus.Draft
   });
 
   const [searchProject, setSearchProject] = useState("");
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+      // If editing, maybe we want to pre-fill search or just show the selected project
+    }
+  }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +43,10 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     }
     const newPub: PublicationOutput = {
       ...formData as PublicationOutput,
-      output_id: `o_${Math.random().toString(36).substr(2, 6)}`
+      output_id: initialData?.output_id || `o_${Math.random().toString(36).substr(2, 6)}`,
+      approval_status: formData.approval_status || ApprovalStatus.Draft
     };
-    onAddPublication(newPub);
+    onSave(newPub);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -48,39 +60,43 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
     p.project_id.includes(searchProject)
   );
 
+  const isAdmin = user?.role === 'Admin';
+
   return (
     <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
       <div className="flex justify-between items-start mb-6">
         <div>
           <h2 className="text-2xl font-bold text-tnsu-green-800 flex items-center">
-            <span className="material-icons mr-2">playlist_add</span>
-            {t('addPub')}
+            <span className="material-icons mr-2">{initialData ? 'edit' : 'playlist_add'}</span>
+            {initialData ? t('editPub') : t('addPub')}
           </h2>
           <p className="text-gray-500 text-sm mt-1">{t('linkProjectDesc')}</p>
         </div>
         
-        <div className="flex items-center bg-tnsu-yellow-50 px-4 py-2 rounded-lg border border-tnsu-yellow-100">
-          <input 
-            type="checkbox" 
-            id="historyMode" 
-            checked={historicalMode} 
-            onChange={(e) => {
-              setHistoricalMode(e.target.checked);
-              if (e.target.checked) {
-                setFormData(prev => ({ ...prev, output_reporting_year: FiscalYear.Y2566 }));
-              } else {
-                setFormData(prev => ({ ...prev, output_reporting_year: FiscalYear.Y2568 }));
-              }
-            }}
-            className="h-5 w-5 text-tnsu-green-600 focus:ring-tnsu-green-500 border-gray-300 rounded cursor-pointer"
-          />
-          <label htmlFor="historyMode" className="ml-2 block text-sm text-tnsu-green-900 font-medium cursor-pointer">
-            {t('histMode')}
-          </label>
-        </div>
+        {!initialData && (
+          <div className="flex items-center bg-tnsu-yellow-50 px-4 py-2 rounded-lg border border-tnsu-yellow-100">
+            <input 
+              type="checkbox" 
+              id="historyMode" 
+              checked={historicalMode} 
+              onChange={(e) => {
+                setHistoricalMode(e.target.checked);
+                if (e.target.checked) {
+                  setFormData(prev => ({ ...prev, output_reporting_year: FiscalYear.Y2566 }));
+                } else {
+                  setFormData(prev => ({ ...prev, output_reporting_year: FiscalYear.Y2568 }));
+                }
+              }}
+              className="h-5 w-5 text-tnsu-green-600 focus:ring-tnsu-green-500 border-gray-300 rounded cursor-pointer"
+            />
+            <label htmlFor="historyMode" className="ml-2 block text-sm text-tnsu-green-900 font-medium cursor-pointer">
+              {t('histMode')}
+            </label>
+          </div>
+        )}
       </div>
 
-      {!historicalMode && (
+      {!historicalMode && !initialData && (
         <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -97,6 +113,41 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onAddPublic
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* Approval Status */}
+        <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <label className="block text-sm font-bold text-blue-800 mb-2">Workflow Status</label>
+          <div className="flex items-center space-x-4">
+            <select
+              name="approval_status"
+              value={formData.approval_status || ApprovalStatus.Draft}
+              onChange={handleChange}
+              className="flex-1 border-blue-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 border p-2.5"
+            >
+              <option value={ApprovalStatus.Draft}>{ApprovalStatus.Draft}</option>
+              <option value={ApprovalStatus.Pending}>{ApprovalStatus.Pending}</option>
+              {isAdmin && (
+                <>
+                  <option value={ApprovalStatus.Approved}>{ApprovalStatus.Approved}</option>
+                  <option value={ApprovalStatus.Rejected}>{ApprovalStatus.Rejected}</option>
+                  <option value={ApprovalStatus.RequestChange}>{ApprovalStatus.RequestChange}</option>
+                </>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Approved && (
+                <option value={ApprovalStatus.Approved} disabled>{ApprovalStatus.Approved}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Rejected && (
+                <option value={ApprovalStatus.Rejected} disabled>{ApprovalStatus.Rejected}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.RequestChange && (
+                <option value={ApprovalStatus.RequestChange} disabled>{ApprovalStatus.RequestChange}</option>
+              )}
+            </select>
+            <div className="text-xs text-blue-600">
+              {isAdmin ? 'Admin: You can change status to any value.' : 'User: Submit for review when ready.'}
+            </div>
+          </div>
+        </div>
+
         {/* Reporting Year */}
         <div className="col-span-1 p-5 bg-gray-50 rounded-xl border border-gray-200">
           <label className="block text-sm font-bold text-tnsu-green-800 mb-2">

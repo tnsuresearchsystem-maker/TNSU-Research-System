@@ -66,9 +66,23 @@ export enum IPType {
   Copyright = "Copyright"
 }
 
+export enum ReportingPeriod {
+  Round6Months = "6 Months",
+  Round12Months = "12 Months"
+}
+
+export enum ApprovalStatus {
+  Draft = "Draft",
+  Pending = "Pending Review",
+  Approved = "Approved",
+  Rejected = "Rejected",
+  RequestChange = "Request Change"
+}
+
 export interface ProjectMaster {
   project_id: string;
   funding_fiscal_year: FiscalYear;
+  reporting_period?: ReportingPeriod;
   campus_id: string; // Used generically for Organization Name
   project_name: string; // Thai Name
   project_name_en?: string; // English Name (Optional for backward compat, but we will add it)
@@ -77,6 +91,7 @@ export interface ProjectMaster {
   funding_source: FundingSource;
   research_category: ResearchCategory;
   status: ProjectStatus;
+  approval_status?: ApprovalStatus;
 }
 
 export interface PersonnelDevelopment {
@@ -89,6 +104,7 @@ export interface PersonnelDevelopment {
   activity_date: string; // ISO Date String
   duration_hours: number;
   certificate_url?: string; // Simulated URL/Filename
+  approval_status?: ApprovalStatus;
 }
 
 export interface PublicationOutput {
@@ -100,6 +116,7 @@ export interface PublicationOutput {
   publication_type: PublicationType;
   is_published: boolean;
   file_url?: string; // Attachment
+  approval_status?: ApprovalStatus;
 }
 
 export interface Utilization {
@@ -109,6 +126,7 @@ export interface Utilization {
   utilization_type: UtilizationType;
   description: string;
   evidence_url?: string; // Attachment
+  approval_status?: ApprovalStatus;
 }
 
 // Module 5 Interfaces
@@ -119,6 +137,7 @@ export interface MOU {
   scope: string;
   fiscal_year: FiscalYear;
   campus_id?: string; // Optional for backward compatibility, but should be used
+  approval_status?: ApprovalStatus;
 }
 
 export interface IntellectualProperty {
@@ -129,6 +148,7 @@ export interface IntellectualProperty {
   registration_date: string;
   fiscal_year: FiscalYear;
   campus_id?: string; // Optional for backward compatibility
+  approval_status?: ApprovalStatus;
 }
 
 // Chat types
@@ -143,6 +163,13 @@ export interface ChatMessage {
 
 export type Language = 'th' | 'en';
 
+export enum Region {
+  North = "Northern Region",
+  Northeast = "Northeastern Region",
+  Central = "Central Region",
+  South = "Southern Region",
+}
+
 export enum OrganizationType {
   OfficePresident = "Office of the President",
   Campus = "Campus",
@@ -154,6 +181,7 @@ export interface Organization {
   nameEn: string;
   nameTh: string;
   type: OrganizationType;
+  region?: Region;
 }
 
 export interface User {

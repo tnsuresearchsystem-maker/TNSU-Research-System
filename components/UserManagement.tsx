@@ -6,6 +6,7 @@ import { ALL_ORGANIZATIONS } from '../constants';
 import { getSystemLogs, sendUserPasswordResetEmail } from '../services/dbService';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import CSVImportModal from './CSVImportModal';
+import { exportToCSV } from '../services/csvService';
 
 interface UserManagementProps {
   users: User[];
@@ -166,6 +167,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
              </div>
              
              <div className="flex space-x-3">
+                <button 
+                  onClick={() => {
+                    const mappedUsers = filteredUsers.map(u => ({
+                      username: u.username,
+                      email: u.email,
+                      role: u.role,
+                      campus_id: u.organization.id
+                    }));
+                    exportToCSV(mappedUsers, 'user', `users_${new Date().toISOString().split('T')[0]}`);
+                  }}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-lg text-sm flex items-center transition-colors shadow-sm"
+                >
+                  <span className="material-icons text-base mr-2 text-gray-500">download</span>
+                  <span className="hidden lg:inline">{t('exportCsv') || 'Export CSV'}</span>
+                </button>
                 <button 
                   onClick={() => setShowImportModal(true)}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm flex items-center transition-colors shadow-sm"

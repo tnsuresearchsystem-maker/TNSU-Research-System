@@ -1,5 +1,5 @@
 
-import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, FiscalYear, FundingSource, ResearchCategory, ProjectStatus, PublicationLevel, PublicationType, UtilizationType, DevelopmentType, IPType, OrganizationType } from "../types";
+import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, FiscalYear, FundingSource, ResearchCategory, ProjectStatus, PublicationLevel, PublicationType, UtilizationType, DevelopmentType, IPType, OrganizationType, ApprovalStatus } from "../types";
 import { CENTRAL_OFFICE, CAMPUSES } from "../constants";
 
 // Helper to generate IDs
@@ -17,7 +17,8 @@ export const initialProjects: ProjectMaster[] = [
     budget_amount: 500000,
     funding_source: FundingSource.Internal,
     research_category: ResearchCategory.SportsScienceHealth,
-    status: ProjectStatus.Completed
+    status: ProjectStatus.Completed,
+    approval_status: ApprovalStatus.Approved
   },
   {
     project_id: "p_002",
@@ -29,7 +30,8 @@ export const initialProjects: ProjectMaster[] = [
     budget_amount: 1200000,
     funding_source: FundingSource.External,
     research_category: ResearchCategory.SportsScienceHealth,
-    status: ProjectStatus.Ongoing
+    status: ProjectStatus.Ongoing,
+    approval_status: ApprovalStatus.Approved
   },
   {
     project_id: "p_003",
@@ -41,7 +43,8 @@ export const initialProjects: ProjectMaster[] = [
     budget_amount: 300000,
     funding_source: FundingSource.Internal,
     research_category: ResearchCategory.LiberalArts,
-    status: ProjectStatus.Completed
+    status: ProjectStatus.Completed,
+    approval_status: ApprovalStatus.Approved
   },
   {
     project_id: "p_004",
@@ -53,7 +56,8 @@ export const initialProjects: ProjectMaster[] = [
     budget_amount: 150000,
     funding_source: FundingSource.NonBudget,
     research_category: ResearchCategory.Education,
-    status: ProjectStatus.Ongoing
+    status: ProjectStatus.Ongoing,
+    approval_status: ApprovalStatus.Approved
   }
 ];
 
@@ -66,7 +70,8 @@ export const initialPublications: PublicationOutput[] = [
     publication_level: PublicationLevel.International,
     publication_type: PublicationType.Scopus,
     is_published: true,
-    file_url: "article_001.pdf"
+    file_url: "article_001.pdf",
+    approval_status: ApprovalStatus.Approved
   },
   {
     output_id: "o_002",
@@ -75,7 +80,8 @@ export const initialPublications: PublicationOutput[] = [
     article_title: "Long-term impact of Serve Techniques",
     publication_level: PublicationLevel.National,
     publication_type: PublicationType.Proceeding,
-    is_published: true
+    is_published: true,
+    approval_status: ApprovalStatus.Approved
   },
   {
     output_id: "o_003",
@@ -84,7 +90,8 @@ export const initialPublications: PublicationOutput[] = [
     article_title: "Youth Nutrition Guidelines",
     publication_level: PublicationLevel.National,
     publication_type: PublicationType.TCI1,
-    is_published: true
+    is_published: true,
+    approval_status: ApprovalStatus.Approved
   }
 ];
 
@@ -94,14 +101,16 @@ export const initialUtilizations: Utilization[] = [
     ref_project_id: "p_001",
     utilization_reporting_year: FiscalYear.Y2568,
     utilization_type: UtilizationType.Academic,
-    description: "Cited in 5 graduate theses at TNSU Chiang Mai."
+    description: "Cited in 5 graduate theses at TNSU Chiang Mai.",
+    approval_status: ApprovalStatus.Approved
   },
   {
     id: "u_002",
     ref_project_id: "p_003",
     utilization_reporting_year: FiscalYear.Y2567,
     utilization_type: UtilizationType.Policy,
-    description: "Adopted as standard guideline for Chonburi Youth Swimming Association."
+    description: "Adopted as standard guideline for Chonburi Youth Swimming Association.",
+    approval_status: ApprovalStatus.Approved
   }
 ];
 
@@ -115,7 +124,8 @@ export const initialPersonnel: PersonnelDevelopment[] = [
     course_name: "International Conference on Sports Biomechanics 2024",
     activity_date: "2024-03-15",
     duration_hours: 16,
-    certificate_url: "cert_somchai_2024.pdf"
+    certificate_url: "cert_somchai_2024.pdf",
+    approval_status: ApprovalStatus.Approved
   },
   {
     id: "pd_002",
@@ -126,7 +136,8 @@ export const initialPersonnel: PersonnelDevelopment[] = [
     course_name: "Advanced Research Methodology Workshop",
     activity_date: "2024-11-20",
     duration_hours: 6,
-    certificate_url: "cert_mana_2024.pdf"
+    certificate_url: "cert_mana_2024.pdf",
+    approval_status: ApprovalStatus.Approved
   }
 ];
 
@@ -136,7 +147,8 @@ export const initialMOUs: MOU[] = [
     external_org_name: "Sports Authority of Thailand (SAT)",
     sign_date: "2024-01-15",
     scope: "Collaboration on elite athlete training programs.",
-    fiscal_year: FiscalYear.Y2567
+    fiscal_year: FiscalYear.Y2567,
+    approval_status: ApprovalStatus.Approved
   }
 ];
 
@@ -147,7 +159,8 @@ export const initialIPs: IntellectualProperty[] = [
     ip_type: IPType.PettyPatent,
     request_number: "2401000123",
     registration_date: "2025-02-10",
-    fiscal_year: FiscalYear.Y2568
+    fiscal_year: FiscalYear.Y2568,
+    approval_status: ApprovalStatus.Approved
   }
 ];
 

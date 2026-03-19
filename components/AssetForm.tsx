@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { MOU, IntellectualProperty, FiscalYear, IPType } from '../types';
+import { MOU, IntellectualProperty, FiscalYear, IPType, ApprovalStatus } from '../types';
 import { FISCAL_YEARS, IP_TYPES, ALL_ORGANIZATIONS } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AssetFormProps {
   type: 'mou' | 'ip';
@@ -13,12 +14,14 @@ interface AssetFormProps {
 
 const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCancel }) => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
 
   // MOU State
   const [mouData, setMouData] = useState<Partial<MOU>>({
     fiscal_year: FiscalYear.Y2568,
     sign_date: new Date().toISOString().split('T')[0],
-    campus_id: ALL_ORGANIZATIONS[0].id // Default to first org
+    campus_id: ALL_ORGANIZATIONS[0].id, // Default to first org
+    approval_status: ApprovalStatus.Draft
   });
 
   // IP State
@@ -26,7 +29,8 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
     fiscal_year: FiscalYear.Y2568,
     ip_type: IPType.Patent,
     registration_date: new Date().toISOString().split('T')[0],
-    campus_id: ALL_ORGANIZATIONS[0].id // Default to first org
+    campus_id: ALL_ORGANIZATIONS[0].id, // Default to first org
+    approval_status: ApprovalStatus.Draft
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,15 +38,27 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
     if (type === 'mou' && onSaveMOU) {
       const newMOU: MOU = {
         ...mouData as MOU,
-        id: `mou_${Math.random().toString(36).substr(2, 6)}`
+        id: `mou_${Math.random().toString(36).substr(2, 6)}`,
+        approval_status: mouData.approval_status || ApprovalStatus.Draft
       };
       onSaveMOU(newMOU);
     } else if (type === 'ip' && onSaveIP) {
        const newIP: IntellectualProperty = {
          ...ipData as IntellectualProperty,
-         id: `ip_${Math.random().toString(36).substr(2, 6)}`
+         id: `ip_${Math.random().toString(36).substr(2, 6)}`,
+         approval_status: ipData.approval_status || ApprovalStatus.Draft
        };
        onSaveIP(newIP);
+    }
+  };
+
+  const isAdmin = user?.role === 'Admin';
+  const currentStatus = type === 'mou' ? mouData.approval_status : ipData.approval_status;
+  const setStatus = (status: ApprovalStatus) => {
+    if (type === 'mou') {
+      setMouData({ ...mouData, approval_status: status });
+    } else {
+      setIpData({ ...ipData, approval_status: status });
     }
   };
 
@@ -55,6 +71,40 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* Approval Status */}
+        <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <label className="block text-sm font-bold text-blue-800 mb-2">Workflow Status</label>
+          <div className="flex items-center space-x-4">
+            <select
+              value={currentStatus || ApprovalStatus.Draft}
+              onChange={(e) => setStatus(e.target.value as ApprovalStatus)}
+              className="flex-1 border-blue-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 border p-2.5"
+            >
+              <option value={ApprovalStatus.Draft}>{ApprovalStatus.Draft}</option>
+              <option value={ApprovalStatus.Pending}>{ApprovalStatus.Pending}</option>
+              {isAdmin && (
+                <>
+                  <option value={ApprovalStatus.Approved}>{ApprovalStatus.Approved}</option>
+                  <option value={ApprovalStatus.Rejected}>{ApprovalStatus.Rejected}</option>
+                  <option value={ApprovalStatus.RequestChange}>{ApprovalStatus.RequestChange}</option>
+                </>
+              )}
+               {!isAdmin && currentStatus === ApprovalStatus.Approved && (
+                <option value={ApprovalStatus.Approved} disabled>{ApprovalStatus.Approved}</option>
+              )}
+               {!isAdmin && currentStatus === ApprovalStatus.Rejected && (
+                <option value={ApprovalStatus.Rejected} disabled>{ApprovalStatus.Rejected}</option>
+              )}
+               {!isAdmin && currentStatus === ApprovalStatus.RequestChange && (
+                <option value={ApprovalStatus.RequestChange} disabled>{ApprovalStatus.RequestChange}</option>
+              )}
+            </select>
+            <div className="text-xs text-blue-600">
+              {isAdmin ? 'Admin: You can change status to any value.' : 'User: Submit for review when ready.'}
+            </div>
+          </div>
+        </div>
+
         {/* Fiscal Year (Common) */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('fiscalYear')}</label>

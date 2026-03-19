@@ -1,5 +1,5 @@
 
-import { FiscalYear, FundingSource, ProjectStatus, ResearchCategory, PublicationLevel, PublicationType, OrganizationType, Organization, UtilizationType, DevelopmentType, IPType } from "./types";
+import { FiscalYear, FundingSource, ProjectStatus, ResearchCategory, PublicationLevel, PublicationType, OrganizationType, Organization, UtilizationType, DevelopmentType, IPType, Region } from "./types";
 
 export const FISCAL_YEARS = Object.values(FiscalYear);
 export const FUNDING_SOURCES = Object.values(FundingSource);
@@ -10,6 +10,7 @@ export const PUBLICATION_TYPES = Object.values(PublicationType);
 export const UTILIZATION_TYPES = Object.values(UtilizationType);
 export const DEVELOPMENT_TYPES = Object.values(DevelopmentType);
 export const IP_TYPES = Object.values(IPType);
+export const REGIONS = Object.values(Region);
 
 // --- ORGANIZATIONS DATA ---
 
@@ -18,39 +19,39 @@ export const CENTRAL_OFFICE: Organization[] = [
 ];
 
 export const CAMPUSES: Organization[] = [
-  { id: "c_chiangmai", nameEn: "Chiang Mai Campus", nameTh: "วิทยาเขตเชียงใหม่", type: OrganizationType.Campus },
-  { id: "c_phetchabun", nameEn: "Phetchabun Campus", nameTh: "วิทยาเขตเพชรบูรณ์", type: OrganizationType.Campus },
-  { id: "c_lampang", nameEn: "Lampang Campus", nameTh: "วิทยาเขตลำปาง", type: OrganizationType.Campus },
-  { id: "c_sukhothai", nameEn: "Sukhothai Campus", nameTh: "วิทยาเขตสุโขทัย", type: OrganizationType.Campus },
-  { id: "c_bangkok", nameEn: "Bangkok Campus", nameTh: "วิทยาเขตกรุงเทพ", type: OrganizationType.Campus },
-  { id: "c_chonburi", nameEn: "Chonburi Campus", nameTh: "วิทยาเขตชลบุรี", type: OrganizationType.Campus },
-  { id: "c_samutsakhon", nameEn: "Samut Sakhon Campus", nameTh: "วิทยาเขตสมุทรสาคร", type: OrganizationType.Campus },
-  { id: "c_suphanburi", nameEn: "Suphan Buri Campus", nameTh: "วิทยาเขตสุพรรณบุรี", type: OrganizationType.Campus },
-  { id: "c_angthong", nameEn: "Ang Thong Campus", nameTh: "วิทยาเขตอ่างทอง", type: OrganizationType.Campus },
-  { id: "c_chaiyaphum", nameEn: "Chaiyaphum Campus", nameTh: "วิทยาเขตชัยภูมิ", type: OrganizationType.Campus },
-  { id: "c_mahasarakham", nameEn: "Maha Sarakham Campus", nameTh: "วิทยาเขตมหาสารคาม", type: OrganizationType.Campus },
-  { id: "c_sisaket", nameEn: "Sisaket Campus", nameTh: "วิทยาเขตศรีสะเกษ", type: OrganizationType.Campus },
-  { id: "c_udonthani", nameEn: "Udon Thani Campus", nameTh: "วิทยาเขตอุดรธานี", type: OrganizationType.Campus },
-  { id: "c_krabi", nameEn: "Krabi Campus", nameTh: "วิทยาเขตกระบี่", type: OrganizationType.Campus },
-  { id: "c_chumphon", nameEn: "Chumphon Campus", nameTh: "วิทยาเขตชุมพร", type: OrganizationType.Campus },
-  { id: "c_trang", nameEn: "Trang Campus", nameTh: "วิทยาเขตตรัง", type: OrganizationType.Campus },
-  { id: "c_yala", nameEn: "Yala Campus", nameTh: "วิทยาเขตยะลา", type: OrganizationType.Campus },
+  { id: "c_chiangmai", nameEn: "Chiang Mai Campus", nameTh: "วิทยาเขตเชียงใหม่", type: OrganizationType.Campus, region: Region.North },
+  { id: "c_phetchabun", nameEn: "Phetchabun Campus", nameTh: "วิทยาเขตเพชรบูรณ์", type: OrganizationType.Campus, region: Region.North },
+  { id: "c_lampang", nameEn: "Lampang Campus", nameTh: "วิทยาเขตลำปาง", type: OrganizationType.Campus, region: Region.North },
+  { id: "c_sukhothai", nameEn: "Sukhothai Campus", nameTh: "วิทยาเขตสุโขทัย", type: OrganizationType.Campus, region: Region.North },
+  { id: "c_bangkok", nameEn: "Bangkok Campus", nameTh: "วิทยาเขตกรุงเทพ", type: OrganizationType.Campus, region: Region.Central },
+  { id: "c_chonburi", nameEn: "Chonburi Campus", nameTh: "วิทยาเขตชลบุรี", type: OrganizationType.Campus, region: Region.Central },
+  { id: "c_samutsakhon", nameEn: "Samut Sakhon Campus", nameTh: "วิทยาเขตสมุทรสาคร", type: OrganizationType.Campus, region: Region.Central },
+  { id: "c_suphanburi", nameEn: "Suphan Buri Campus", nameTh: "วิทยาเขตสุพรรณบุรี", type: OrganizationType.Campus, region: Region.Central },
+  { id: "c_angthong", nameEn: "Ang Thong Campus", nameTh: "วิทยาเขตอ่างทอง", type: OrganizationType.Campus, region: Region.Central },
+  { id: "c_chaiyaphum", nameEn: "Chaiyaphum Campus", nameTh: "วิทยาเขตชัยภูมิ", type: OrganizationType.Campus, region: Region.Northeast },
+  { id: "c_mahasarakham", nameEn: "Maha Sarakham Campus", nameTh: "วิทยาเขตมหาสารคาม", type: OrganizationType.Campus, region: Region.Northeast },
+  { id: "c_sisaket", nameEn: "Sisaket Campus", nameTh: "วิทยาเขตศรีสะเกษ", type: OrganizationType.Campus, region: Region.Northeast },
+  { id: "c_udonthani", nameEn: "Udon Thani Campus", nameTh: "วิทยาเขตอุดรธานี", type: OrganizationType.Campus, region: Region.Northeast },
+  { id: "c_krabi", nameEn: "Krabi Campus", nameTh: "วิทยาเขตกระบี่", type: OrganizationType.Campus, region: Region.South },
+  { id: "c_chumphon", nameEn: "Chumphon Campus", nameTh: "วิทยาเขตชุมพร", type: OrganizationType.Campus, region: Region.South },
+  { id: "c_trang", nameEn: "Trang Campus", nameTh: "วิทยาเขตตรัง", type: OrganizationType.Campus, region: Region.South },
+  { id: "c_yala", nameEn: "Yala Campus", nameTh: "วิทยาเขตยะลา", type: OrganizationType.Campus, region: Region.South },
 ];
 
 export const SPORTS_SCHOOLS: Organization[] = [
-  { id: "s_chiangmai", nameEn: "Chiang Mai Sports School", nameTh: "โรงเรียนกีฬาจังหวัดเชียงใหม่", type: OrganizationType.SportsSchool },
-  { id: "s_nakhonsawan", nameEn: "Nakhon Sawan Sports School", nameTh: "โรงเรียนกีฬาจังหวัดนครสวรรค์", type: OrganizationType.SportsSchool },
-  { id: "s_lampang", nameEn: "Lampang Sports School", nameTh: "โรงเรียนกีฬาจังหวัดลำปาง", type: OrganizationType.SportsSchool },
-  { id: "s_chonburi", nameEn: "Chonburi Sports School", nameTh: "โรงเรียนกีฬาจังหวัดชลบุรี", type: OrganizationType.SportsSchool },
-  { id: "s_nakhonnayok", nameEn: "Nakhon Nayok Sports School", nameTh: "โรงเรียนกีฬาจังหวัดนครนายก", type: OrganizationType.SportsSchool },
-  { id: "s_suphanburi", nameEn: "Suphan Buri Sports School", nameTh: "โรงเรียนกีฬาจังหวัดสุพรรณบุรี", type: OrganizationType.SportsSchool },
-  { id: "s_angthong", nameEn: "Ang Thong Sports School", nameTh: "โรงเรียนกีฬาจังหวัดอ่างทอง", type: OrganizationType.SportsSchool },
-  { id: "s_khonkaen", nameEn: "Khon Kaen Sports School", nameTh: "โรงเรียนกีฬาจังหวัดขอนแก่น", type: OrganizationType.SportsSchool },
-  { id: "s_sisaket", nameEn: "Sisaket Sports School", nameTh: "โรงเรียนกีฬาจังหวัดศรีสะเกษ", type: OrganizationType.SportsSchool },
-  { id: "s_ubon", nameEn: "Ubon Ratchathani Sports School", nameTh: "โรงเรียนกีฬาจังหวัดอุบลราชธานี", type: OrganizationType.SportsSchool },
-  { id: "s_trang", nameEn: "Trang Sports School", nameTh: "โรงเรียนกีฬาจังหวัดตรัง", type: OrganizationType.SportsSchool },
-  { id: "s_nakhonsi", nameEn: "Nakhon Si Thammarat Sports School", nameTh: "โรงเรียนกีฬาจังหวัดนครศรีธรรมราช", type: OrganizationType.SportsSchool },
-  { id: "s_yala", nameEn: "Yala Sports School", nameTh: "โรงเรียนกีฬาจังหวัดยะลา", type: OrganizationType.SportsSchool },
+  { id: "s_chiangmai", nameEn: "Chiang Mai Sports School", nameTh: "โรงเรียนกีฬาจังหวัดเชียงใหม่", type: OrganizationType.SportsSchool, region: Region.North },
+  { id: "s_nakhonsawan", nameEn: "Nakhon Sawan Sports School", nameTh: "โรงเรียนกีฬาจังหวัดนครสวรรค์", type: OrganizationType.SportsSchool, region: Region.North },
+  { id: "s_lampang", nameEn: "Lampang Sports School", nameTh: "โรงเรียนกีฬาจังหวัดลำปาง", type: OrganizationType.SportsSchool, region: Region.North },
+  { id: "s_chonburi", nameEn: "Chonburi Sports School", nameTh: "โรงเรียนกีฬาจังหวัดชลบุรี", type: OrganizationType.SportsSchool, region: Region.Central },
+  { id: "s_nakhonnayok", nameEn: "Nakhon Nayok Sports School", nameTh: "โรงเรียนกีฬาจังหวัดนครนายก", type: OrganizationType.SportsSchool, region: Region.Central },
+  { id: "s_suphanburi", nameEn: "Suphan Buri Sports School", nameTh: "โรงเรียนกีฬาจังหวัดสุพรรณบุรี", type: OrganizationType.SportsSchool, region: Region.Central },
+  { id: "s_angthong", nameEn: "Ang Thong Sports School", nameTh: "โรงเรียนกีฬาจังหวัดอ่างทอง", type: OrganizationType.SportsSchool, region: Region.Central },
+  { id: "s_khonkaen", nameEn: "Khon Kaen Sports School", nameTh: "โรงเรียนกีฬาจังหวัดขอนแก่น", type: OrganizationType.SportsSchool, region: Region.Northeast },
+  { id: "s_sisaket", nameEn: "Sisaket Sports School", nameTh: "โรงเรียนกีฬาจังหวัดศรีสะเกษ", type: OrganizationType.SportsSchool, region: Region.Northeast },
+  { id: "s_ubon", nameEn: "Ubon Ratchathani Sports School", nameTh: "โรงเรียนกีฬาจังหวัดอุบลราชธานี", type: OrganizationType.SportsSchool, region: Region.Northeast },
+  { id: "s_trang", nameEn: "Trang Sports School", nameTh: "โรงเรียนกีฬาจังหวัดตรัง", type: OrganizationType.SportsSchool, region: Region.South },
+  { id: "s_nakhonsi", nameEn: "Nakhon Si Thammarat Sports School", nameTh: "โรงเรียนกีฬาจังหวัดนครศรีธรรมราช", type: OrganizationType.SportsSchool, region: Region.South },
+  { id: "s_yala", nameEn: "Yala Sports School", nameTh: "โรงเรียนกีฬาจังหวัดยะลา", type: OrganizationType.SportsSchool, region: Region.South },
 ];
 
 export const FACULTIES: Organization[] = [
@@ -94,6 +95,7 @@ export const TRANSLATIONS = {
     edit: "Edit",
     delete: "Delete",
     addPub: "Add New Publication",
+    editPub: "Edit Publication Details",
     addUtil: "Add Utilization Record",
     addPersonnel: "Add Personnel Record",
     addUser: "Add New User",
@@ -133,6 +135,8 @@ export const TRANSLATIONS = {
     "Faculty of Sports Science and Health": "Faculty of Sports Science and Health",
     "Faculty of Liberal Arts": "Faculty of Liberal Arts",
     "Faculty of Education": "Faculty of Education",
+    "6 Months": "Round 1 (6 Months)",
+    "12 Months": "Round 2 (12 Months)",
 
     searchPlaceholder: "Search data...",
     chatTitle: "TNSU AI Analyst",
@@ -159,6 +163,10 @@ export const TRANSLATIONS = {
     printReport: "Print Report",
     allTypes: "All Organization Types",
     allOrgs: "All Organizations",
+    allPeriods: "All Periods",
+    allRegions: "All Regions",
+    reportingPeriod: "Reporting Period",
+    selectReportingPeriod: "Select Period",
     confirmDeleteProject: "Are you sure you want to delete this project? This action cannot be undone.",
     deleteError: "Failed to delete project. Please try again.",
     
@@ -321,6 +329,7 @@ export const TRANSLATIONS = {
     edit: "แก้ไข",
     delete: "ลบข้อมูล",
     addPub: "เพิ่มข้อมูลผลงานตีพิมพ์",
+    editPub: "แก้ไขข้อมูลผลงานตีพิมพ์",
     addUtil: "เพิ่มข้อมูลการนำไปใช้ประโยชน์",
     addPersonnel: "เพิ่มประวัติการพัฒนาบุคลากร",
     addUser: "เพิ่มผู้ใช้งานใหม่",
@@ -360,6 +369,8 @@ export const TRANSLATIONS = {
     "Faculty of Sports Science and Health": "คณะวิทยาศาสตร์การกีฬาและสุขภาพ",
     "Faculty of Liberal Arts": "คณะศิลปศาสตร์",
     "Faculty of Education": "คณะศึกษาศาสตร์",
+    "6 Months": "รอบที่ 1 (6 เดือน)",
+    "12 Months": "รอบที่ 2 (12 เดือน)",
 
     searchPlaceholder: "ค้นหาข้อมูล...",
     chatTitle: "ผู้ช่วยวิเคราะห์ AI TNSU",
@@ -386,6 +397,10 @@ export const TRANSLATIONS = {
     printReport: "พิมพ์รายงานสรุป",
     allTypes: "ทุกประเภทหน่วยงาน",
     allOrgs: "ทุกหน่วยงาน",
+    allPeriods: "ทุกรอบการรายงาน",
+    allRegions: "ทุกภูมิภาค",
+    reportingPeriod: "รอบการรายงาน",
+    selectReportingPeriod: "เลือกรอบการรายงาน",
     confirmDeleteProject: "ยืนยันการลบโครงการนี้? (ไม่สามารถกู้คืนได้)",
     deleteError: "ลบโครงการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
 

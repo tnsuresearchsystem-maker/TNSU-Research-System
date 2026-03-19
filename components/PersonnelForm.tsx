@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { PersonnelDevelopment, FiscalYear, DevelopmentType } from '../types';
+import { PersonnelDevelopment, FiscalYear, DevelopmentType, ApprovalStatus } from '../types';
 import { FISCAL_YEARS, DEVELOPMENT_TYPES, ALL_ORGANIZATIONS } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,7 +23,8 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
     activity_date: new Date().toISOString().split('T')[0],
     staff_name: '',
     course_name: '',
-    certificate_url: ''
+    certificate_url: '',
+    approval_status: ApprovalStatus.Draft
   });
 
   useEffect(() => {
@@ -50,7 +51,8 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
       course_name: formData.course_name,
       activity_date: formData.activity_date || new Date().toISOString().split('T')[0],
       duration_hours: Number(formData.duration_hours),
-      certificate_url: formData.certificate_url
+      certificate_url: formData.certificate_url,
+      approval_status: formData.approval_status || ApprovalStatus.Draft
     };
     
     onSave(dataToSave);
@@ -59,6 +61,8 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  const isAdmin = user?.role === 'Admin';
 
   return (
     <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 animate-fade-in-up">
@@ -69,6 +73,41 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* Approval Status */}
+        <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
+          <label className="block text-sm font-bold text-blue-800 mb-2">Workflow Status</label>
+          <div className="flex items-center space-x-4">
+            <select
+              name="approval_status"
+              value={formData.approval_status || ApprovalStatus.Draft}
+              onChange={handleChange}
+              className="flex-1 border-blue-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 border p-2.5"
+            >
+              <option value={ApprovalStatus.Draft}>{ApprovalStatus.Draft}</option>
+              <option value={ApprovalStatus.Pending}>{ApprovalStatus.Pending}</option>
+              {isAdmin && (
+                <>
+                  <option value={ApprovalStatus.Approved}>{ApprovalStatus.Approved}</option>
+                  <option value={ApprovalStatus.Rejected}>{ApprovalStatus.Rejected}</option>
+                  <option value={ApprovalStatus.RequestChange}>{ApprovalStatus.RequestChange}</option>
+                </>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Approved && (
+                <option value={ApprovalStatus.Approved} disabled>{ApprovalStatus.Approved}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.Rejected && (
+                <option value={ApprovalStatus.Rejected} disabled>{ApprovalStatus.Rejected}</option>
+              )}
+               {!isAdmin && formData.approval_status === ApprovalStatus.RequestChange && (
+                <option value={ApprovalStatus.RequestChange} disabled>{ApprovalStatus.RequestChange}</option>
+              )}
+            </select>
+            <div className="text-xs text-blue-600">
+              {isAdmin ? 'Admin: You can change status to any value.' : 'User: Submit for review when ready.'}
+            </div>
+          </div>
+        </div>
+
         {/* Fiscal Year */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('fiscalYear')}</label>
