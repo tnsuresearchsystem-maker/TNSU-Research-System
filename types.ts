@@ -191,6 +191,7 @@ export interface User {
   email: string;
   organization: Organization; // Stores full Org object for easier context
   role: 'Admin' | 'User';
+  mustChangePassword?: boolean;
 }
 
 // --- LOGGING SYSTEM ---

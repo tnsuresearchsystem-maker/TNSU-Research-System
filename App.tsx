@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
 import { CSVType, exportToCSV } from './services/csvService';
+import { ChangePasswordForm } from './components/ChangePasswordForm';
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -98,7 +99,7 @@ function AppContent() {
 
   // Fetch Data from Firebase on Load
   useEffect(() => {
-    if (user) {
+    if (user && !user.mustChangePassword) {
       fetchData();
     }
   }, [user]);
@@ -106,6 +107,11 @@ function AppContent() {
   // If no user is logged in, show Login
   if (!user) {
     return <Login />;
+  }
+
+  // If user must change password, show ChangePasswordForm
+  if (user.mustChangePassword) {
+    return <ChangePasswordForm />;
   }
 
   const handleSaveProject = async (project: ProjectMaster) => {

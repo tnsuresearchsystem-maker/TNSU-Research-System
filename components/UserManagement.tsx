@@ -171,6 +171,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                   onClick={() => {
                     const mappedUsers = filteredUsers.map(u => ({
                       username: u.username,
+                      password: u.password || 'N/A',
                       email: u.email,
                       role: u.role,
                       campus_id: u.organization.id
@@ -219,7 +220,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 mr-3">
                            <span className="material-icons text-sm">person</span>
                          </div>
-                         <span className="text-sm font-medium text-gray-900">{user.username}</span>
+                         <div className="flex flex-col">
+                           <span className="text-sm font-medium text-gray-900">{user.username}</span>
+                           {user.mustChangePassword && (
+                             <span className="text-xs text-orange-500 flex items-center mt-0.5">
+                               <span className="material-icons text-[10px] mr-1">warning</span>
+                               Needs Password Change
+                             </span>
+                           )}
+                         </div>
                        </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

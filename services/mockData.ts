@@ -1,11 +1,11 @@
 
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, FiscalYear, FundingSource, ResearchCategory, ProjectStatus, PublicationLevel, PublicationType, UtilizationType, DevelopmentType, IPType, OrganizationType, ApprovalStatus } from "../types";
-import { CENTRAL_OFFICE, CAMPUSES } from "../constants";
+import { CENTRAL_OFFICE, CAMPUSES, SPORTS_SCHOOLS } from "../constants";
 
 // Helper to generate IDs
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Seed Data
+// ... (keep other initial data) ...
 export const initialProjects: ProjectMaster[] = [
   {
     project_id: "p_001",
@@ -181,5 +181,25 @@ export const initialUsers: User[] = [
     email: "staff@cm.tnsu.ac.th",
     role: "User",
     organization: CAMPUSES[0] // Chiang Mai
-  }
+  },
+  // Generate default admins for all campuses
+  ...CAMPUSES.map(campus => ({
+    id: `admin_${campus.id}`,
+    username: `admin_${campus.id.replace('c_', '')}`,
+    password: "password123",
+    email: `admin_${campus.id.replace('c_', '')}@tnsu.ac.th`,
+    role: "Admin" as const,
+    organization: campus,
+    mustChangePassword: true
+  })),
+  // Generate default admins for all sports schools
+  ...SPORTS_SCHOOLS.map(school => ({
+    id: `admin_${school.id}`,
+    username: `admin_${school.id.replace('s_', '')}`,
+    password: "password123",
+    email: `admin_${school.id.replace('s_', '')}@tnsu.ac.th`,
+    role: "Admin" as const,
+    organization: school,
+    mustChangePassword: true
+  }))
 ];

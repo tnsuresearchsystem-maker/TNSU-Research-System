@@ -611,7 +611,7 @@ export const changeMyPassword = async (user: User, oldPass: string, newPass: str
       await updatePassword(currentUser, newPass);
       
       // Sync with Firestore (Optional, but keeps legacy field updated)
-      await updateUserInDB({ ...user, password: newPass }, user);
+      await updateUserInDB({ ...user, password: newPass, mustChangePassword: false }, user);
       await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password');
       
       return { success: true };
@@ -624,7 +624,7 @@ export const changeMyPassword = async (user: User, oldPass: string, newPass: str
   // B: Legacy User (Fallback)
   else {
     if (user.password === oldPass) {
-       await updateUserInDB({ ...user, password: newPass }, user);
+       await updateUserInDB({ ...user, password: newPass, mustChangePassword: false }, user);
        // Skip logging if not auth'd to prevent permission error
        // await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password (Legacy)');
        return { success: true };

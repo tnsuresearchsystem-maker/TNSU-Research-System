@@ -41,14 +41,16 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
       email: formData.email!,
       role: formData.role || 'User',
       password: formData.password || (initialData ? initialData.password : 'password123'), // Keep old password if editing and not changed, default for new
-      organization: org
+      organization: org,
+      mustChangePassword: formData.mustChangePassword !== undefined ? formData.mustChangePassword : true // Default to true for new users
     };
 
     onSave(userToSave);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
   };
 
   return (
@@ -150,6 +152,21 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
                 ))}
             </optgroup>
           </select>
+        </div>
+
+        {/* Must Change Password Checkbox */}
+        <div className="col-span-2 flex items-center mt-2">
+          <input
+            type="checkbox"
+            id="mustChangePassword"
+            name="mustChangePassword"
+            checked={formData.mustChangePassword !== undefined ? formData.mustChangePassword : true}
+            onChange={handleChange}
+            className="h-4 w-4 text-tnsu-green-600 focus:ring-tnsu-green-500 border-gray-300 rounded"
+          />
+          <label htmlFor="mustChangePassword" className="ml-2 block text-sm text-gray-900">
+            Require user to change password on next login
+          </label>
         </div>
 
         <div className="col-span-2 flex justify-end space-x-3 mt-4">

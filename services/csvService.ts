@@ -25,7 +25,7 @@ export const HEADERS: Record<CSVType, string[]> = {
     'fiscal_year', 'work_name', 'ip_type', 'request_number', 'registration_date'
   ],
   user: [
-    'username', 'email', 'role', 'campus_id'
+    'username', 'password', 'email', 'role', 'campus_id'
   ]
 };
 
@@ -53,7 +53,7 @@ const EXAMPLES: Record<CSVType, any[]> = {
     fiscal_year: '2568', work_name: 'New Device', ip_type: 'Patent', request_number: '123456', registration_date: '2025-03-01'
   }],
   user: [{
-    username: 'user1', email: 'user1@tnsu.ac.th', role: 'User', campus_id: 'c_chiangmai'
+    username: 'user1', password: 'password123', email: 'user1@tnsu.ac.th', role: 'User', campus_id: 'c_chiangmai'
   }]
 };
 
