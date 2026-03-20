@@ -37,6 +37,7 @@ function AppContent() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [appError, setAppError] = useState<Error | null>(null);
   
   // Views control
   const [showProjectForm, setShowProjectForm] = useState(false);
@@ -65,6 +66,7 @@ function AppContent() {
   // Fetch Data function
   const fetchData = async () => {
     setIsLoading(true);
+    setAppError(null);
     try {
       // If admin, fetch users too
       // Note: Passing the array literal directly to Promise.all ensures proper tuple type inference
@@ -92,10 +94,15 @@ function AppContent() {
 
     } catch (error) {
       console.error("Failed to load data", error);
+      setAppError(error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (appError) {
+    throw appError;
+  }
 
   // Fetch Data from Firebase on Load
   useEffect(() => {

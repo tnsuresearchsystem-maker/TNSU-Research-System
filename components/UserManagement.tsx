@@ -28,6 +28,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [lastLogDoc, setLastLogDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMoreLogs, setHasMoreLogs] = useState(true);
+  const [logError, setLogError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (activeTab === 'logs' && logs.length === 0) {
@@ -37,27 +38,38 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
 
   const fetchLogs = async (isInitial = false) => {
     setLoadingLogs(true);
-    // If initial load, start from null. If load more, use lastLogDoc
-    const cursor = isInitial ? null : lastLogDoc;
-    const { logs: newLogs, lastDoc } = await getSystemLogs(cursor);
-    
-    if (isInitial) {
-      setLogs(newLogs);
-    } else {
-      setLogs(prev => [...prev, ...newLogs]);
+    setLogError(null);
+    try {
+      // If initial load, start from null. If load more, use lastLogDoc
+      const cursor = isInitial ? null : lastLogDoc;
+      const { logs: newLogs, lastDoc } = await getSystemLogs(cursor);
+      
+      if (isInitial) {
+        setLogs(newLogs);
+      } else {
+        setLogs(prev => [...prev, ...newLogs]);
+      }
+      
+      setLastLogDoc(lastDoc);
+      
+      // Assume if we got fewer than requested (20), we reached the end
+      if (newLogs.length < 20) {
+         setHasMoreLogs(false);
+      } else {
+         setHasMoreLogs(true);
+      }
+    } catch (error) {
+      console.error("Error fetching logs:", error);
+      setLogError(error instanceof Error ? error : new Error(String(error)));
+      setHasMoreLogs(false);
+    } finally {
+      setLoadingLogs(false);
     }
-    
-    setLastLogDoc(lastDoc);
-    
-    // Assume if we got fewer than requested (20), we reached the end
-    if (newLogs.length < 20) {
-       setHasMoreLogs(false);
-    } else {
-       setHasMoreLogs(true);
-    }
-    
-    setLoadingLogs(false);
   };
+
+  if (logError) {
+    throw logError;
+  }
 
   const handleResetPassword = async (email: string) => {
     if (confirm(t('confirmResetPassword').replace('{email}', email))) {

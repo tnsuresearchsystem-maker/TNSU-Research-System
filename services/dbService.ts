@@ -15,6 +15,94 @@ const IPS_COL = "ips";
 const USERS_COL = "users";
 const LOGS_COL = "system_logs";
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string;
+    email?: string | null;
+    emailVerified?: boolean;
+    isAnonymous?: boolean;
+    tenantId?: string | null;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// Wrapper functions
+export async function safeGetDocs(q: any, path: string) {
+  try {
+    return await getDocs(q);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    throw error; // Unreachable
+  }
+}
+
+export async function safeAddDoc(col: any, data: any, path: string) {
+  try {
+    return await addDoc(col, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+    throw error; // Unreachable
+  }
+}
+
+export async function safeUpdateDoc(docRef: any, data: any, path: string) {
+  try {
+    return await updateDoc(docRef, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+    throw error; // Unreachable
+  }
+}
+
+export async function safeDeleteDoc(docRef: any, path: string) {
+  try {
+    return await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+    throw error; // Unreachable
+  }
+}
+
 // --- LOGGING UTILITY (PAGINATED) ---
 
 export const logUserActivity = async (
@@ -42,7 +130,7 @@ export const logUserActivity = async (
     };
     await addDoc(collection(db, LOGS_COL), logEntry);
   } catch (error) {
-    console.warn("Failed to write system log (likely permission issue):", error);
+    handleFirestoreError(error, OperationType.CREATE, LOGS_COL);
   }
 };
 
@@ -85,7 +173,7 @@ export const getSystemLogs = async (
 
     return { logs, lastDoc };
   } catch (error) {
-    console.error("Error fetching logs:", error);
+    handleFirestoreError(error, OperationType.GET, LOGS_COL);
     return { logs: [], lastDoc: null };
   }
 };
@@ -100,8 +188,7 @@ export const getProjectsFromDB = async (): Promise<ProjectMaster[]> => {
       ...doc.data() as ProjectMaster
     }));
   } catch (error) {
-    console.error("Error fetching projects:", error);
-    // Return empty array on permission error to prevent crash
+    handleFirestoreError(error, OperationType.GET, PROJECTS_COL);
     return [];
   }
 };
@@ -110,7 +197,7 @@ export const addProjectToDB = async (project: ProjectMaster): Promise<void> => {
   try {
     await addDoc(collection(db, PROJECTS_COL), project);
   } catch (error) {
-    console.error("Error adding project:", error);
+    handleFirestoreError(error, OperationType.CREATE, PROJECTS_COL);
     throw error;
   }
 };
@@ -127,7 +214,7 @@ export const updateProjectInDB = async (project: ProjectMaster): Promise<void> =
       console.error("Project not found to update:", project.project_id);
     }
   } catch (error) {
-    console.error("Error updating project:", error);
+    handleFirestoreError(error, OperationType.UPDATE, PROJECTS_COL);
     throw error;
   }
 };
@@ -141,7 +228,7 @@ export const deleteProjectFromDB = async (projectId: string): Promise<void> => {
       await deleteDoc(docRef);
     }
   } catch (error) {
-    console.error("Error deleting project:", error);
+    handleFirestoreError(error, OperationType.DELETE, PROJECTS_COL);
     throw error;
   }
 };
@@ -156,7 +243,7 @@ export const getPublicationsFromDB = async (): Promise<PublicationOutput[]> => {
       ...doc.data() as PublicationOutput
     }));
   } catch (error) {
-    console.error("Error fetching publications:", error);
+    handleFirestoreError(error, OperationType.GET, PUBLICATIONS_COL);
     return [];
   }
 };
@@ -165,7 +252,7 @@ export const addPublicationToDB = async (pub: PublicationOutput): Promise<void> 
   try {
     await addDoc(collection(db, PUBLICATIONS_COL), pub);
   } catch (error) {
-    console.error("Error adding publication:", error);
+    handleFirestoreError(error, OperationType.CREATE, PUBLICATIONS_COL);
     throw error;
   }
 };
@@ -182,7 +269,7 @@ export const updatePublicationInDB = async (pub: PublicationOutput): Promise<voi
       console.error("Publication not found to update:", pub.output_id);
     }
   } catch (error) {
-    console.error("Error updating publication:", error);
+    handleFirestoreError(error, OperationType.UPDATE, PUBLICATIONS_COL);
     throw error;
   }
 };
@@ -197,7 +284,7 @@ export const getUtilizationsFromDB = async (): Promise<Utilization[]> => {
       ...doc.data() as Utilization
     }));
   } catch (error) {
-    console.error("Error fetching utilizations:", error);
+    handleFirestoreError(error, OperationType.GET, UTILIZATIONS_COL);
     return [];
   }
 };
@@ -206,7 +293,7 @@ export const addUtilizationToDB = async (util: Utilization): Promise<void> => {
   try {
     await addDoc(collection(db, UTILIZATIONS_COL), util);
   } catch (error) {
-    console.error("Error adding utilization:", error);
+    handleFirestoreError(error, OperationType.CREATE, UTILIZATIONS_COL);
     throw error;
   }
 };
@@ -223,7 +310,7 @@ export const updateUtilizationInDB = async (util: Utilization): Promise<void> =>
       console.error("Utilization not found to update:", util.id);
     }
   } catch (error) {
-    console.error("Error updating utilization:", error);
+    handleFirestoreError(error, OperationType.UPDATE, UTILIZATIONS_COL);
     throw error;
   }
 };
@@ -238,7 +325,7 @@ export const getPersonnelFromDB = async (): Promise<PersonnelDevelopment[]> => {
       ...doc.data() as PersonnelDevelopment
     }));
   } catch (error) {
-    console.error("Error fetching personnel data:", error);
+    handleFirestoreError(error, OperationType.GET, PERSONNEL_COL);
     return [];
   }
 };
@@ -247,7 +334,7 @@ export const addPersonnelToDB = async (personnel: PersonnelDevelopment): Promise
   try {
     await addDoc(collection(db, PERSONNEL_COL), personnel);
   } catch (error) {
-    console.error("Error adding personnel data:", error);
+    handleFirestoreError(error, OperationType.CREATE, PERSONNEL_COL);
     throw error;
   }
 };
@@ -264,7 +351,7 @@ export const updatePersonnelInDB = async (personnel: PersonnelDevelopment): Prom
       console.error("Personnel record not found to update:", personnel.id);
     }
   } catch (error) {
-    console.error("Error updating personnel:", error);
+    handleFirestoreError(error, OperationType.UPDATE, PERSONNEL_COL);
     throw error;
   }
 };
@@ -277,7 +364,7 @@ export const getMOUsFromDB = async (): Promise<MOU[]> => {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ ...doc.data() as MOU }));
   } catch (error) {
-    console.error("Error fetching MOUs:", error);
+    handleFirestoreError(error, OperationType.GET, MOUS_COL);
     return [];
   }
 };
@@ -286,7 +373,7 @@ export const addMOUToDB = async (mou: MOU): Promise<void> => {
   try {
     await addDoc(collection(db, MOUS_COL), mou);
   } catch (error) {
-    console.error("Error adding MOU:", error);
+    handleFirestoreError(error, OperationType.CREATE, MOUS_COL);
     throw error;
   }
 };
@@ -299,7 +386,7 @@ export const getIPsFromDB = async (): Promise<IntellectualProperty[]> => {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ ...doc.data() as IntellectualProperty }));
   } catch (error) {
-    console.error("Error fetching IPs:", error);
+    handleFirestoreError(error, OperationType.GET, IPS_COL);
     return [];
   }
 };
@@ -308,7 +395,7 @@ export const addIPToDB = async (ip: IntellectualProperty): Promise<void> => {
   try {
     await addDoc(collection(db, IPS_COL), ip);
   } catch (error) {
-    console.error("Error adding IP:", error);
+    handleFirestoreError(error, OperationType.CREATE, IPS_COL);
     throw error;
   }
 };
@@ -321,7 +408,7 @@ export const getUsersFromDB = async (): Promise<User[]> => {
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ ...doc.data() as User }));
   } catch (error) {
-    console.error("Error fetching Users:", error);
+    handleFirestoreError(error, OperationType.GET, USERS_COL);
     return [];
   }
 };
@@ -336,7 +423,7 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
     }
     return null;
   } catch (error) {
-    console.error("Error fetching user by email:", error);
+    handleFirestoreError(error, OperationType.GET, USERS_COL);
     // In strict security mode, this might fail if we can't query by email index without auth. 
     // But this function is usually called AFTER auth state change, so it should be fine.
     return null;
@@ -344,71 +431,90 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 };
 
 export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
+  // Check if we are in Legacy Mode (Unauthenticated)
+  if (!auth.currentUser) {
+      throw new Error("Write Access Denied: You are logged in via Legacy Mode. Please contact support to sync your account with Firebase Auth.");
+  }
+
+  // Check for existing username in Firestore
+  const q = query(collection(db, USERS_COL), where("username", "==", user.username));
+  let snapshot;
   try {
-    // Check if we are in Legacy Mode (Unauthenticated)
-    if (!auth.currentUser) {
-        throw new Error("Write Access Denied: You are logged in via Legacy Mode. Please contact support to sync your account with Firebase Auth.");
-    }
-
-    // Check for existing username in Firestore
-    const q = query(collection(db, USERS_COL), where("username", "==", user.username));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-       throw new Error("Username already exists");
-    }
-
-    await addDoc(collection(db, USERS_COL), user);
-    
-    // Log the creation
-    if (actor) {
-      await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role}). Note: Auth account must be created separately.`);
-    }
+    snapshot = await getDocs(q);
   } catch (error) {
-    console.error("Error adding User:", error);
-    throw error;
+    handleFirestoreError(error, OperationType.GET, USERS_COL);
+    return;
+  }
+  
+  if (!snapshot.empty) {
+     throw new Error("Username already exists");
+  }
+
+  try {
+    await addDoc(collection(db, USERS_COL), user);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, USERS_COL);
+    return;
+  }
+  
+  // Log the creation
+  if (actor) {
+    await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role}). Note: Auth account must be created separately.`);
   }
 };
 
 export const updateUserInDB = async (user: User, actor?: User): Promise<void> => {
+  let querySnapshot;
   try {
     const q = query(collection(db, USERS_COL), where("id", "==", user.id), limit(1));
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { ...user });
-
-      // Log the update
-      if (actor) {
-        await logUserActivity(actor, 'UPDATE', 'User', `Updated user: ${user.username}`);
-      }
-    } else {
-      console.error("User not found to update:", user.id);
-    }
+    querySnapshot = await getDocs(q);
   } catch (error) {
-    console.error("Error updating User:", error);
-    throw error;
+    handleFirestoreError(error, OperationType.GET, USERS_COL);
+    return;
+  }
+
+  if (!querySnapshot.empty) {
+    const docRef = querySnapshot.docs[0].ref;
+    try {
+      await updateDoc(docRef, { ...user });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, USERS_COL);
+      return;
+    }
+
+    // Log the update
+    if (actor) {
+      await logUserActivity(actor, 'UPDATE', 'User', `Updated user: ${user.username}`);
+    }
+  } else {
+    console.error("User not found to update:", user.id);
   }
 };
 
 export const deleteUserFromDB = async (id: string, actor?: User): Promise<void> => {
+    let querySnapshot;
     try {
         const q = query(collection(db, USERS_COL), where("id", "==", id), limit(1));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-            const userToDelete = querySnapshot.docs[0].data() as User;
-            const docRef = querySnapshot.docs[0].ref;
-            await deleteDoc(docRef);
-
-            // Log the deletion
-            if (actor) {
-              await logUserActivity(actor, 'DELETE', 'User', `Deleted user: ${userToDelete.username}`);
-            }
-        }
+        querySnapshot = await getDocs(q);
     } catch (error) {
-        console.error("Error deleting user:", error);
-        throw error;
+        handleFirestoreError(error, OperationType.GET, USERS_COL);
+        return;
+    }
+
+    if (!querySnapshot.empty) {
+        const userToDelete = querySnapshot.docs[0].data() as User;
+        const docRef = querySnapshot.docs[0].ref;
+        try {
+            await deleteDoc(docRef);
+        } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, USERS_COL);
+            return;
+        }
+
+        // Log the deletion
+        if (actor) {
+          await logUserActivity(actor, 'DELETE', 'User', `Deleted user: ${userToDelete.username}`);
+        }
     }
 }
 
@@ -689,7 +795,7 @@ export const seedDatabase = async (
     await Promise.all(promises);
     console.log("Database seeded successfully");
   } catch (error) {
-    console.error("Error seeding database:", error);
+    handleFirestoreError(error, OperationType.CREATE, "Multiple Collections");
     throw error;
   }
 };

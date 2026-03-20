@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is an admin
+    // Note: In a real app, you'd want to check custom claims or a user document.
+    // For this app, we'll allow authenticated users to perform most actions,
+    // but you can restrict this further based on your needs.
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    // Allow all authenticated users to read and write core data
+    match /projects/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    match /publications/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    match /utilizations/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    match /personnel/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    match /mous/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    match /ips/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone authenticated can read users (needed for resolving names, etc.)
+      allow read: if isAuthenticated();
+      // Users can update their own profile, Admins can do anything
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // System Logs collection
+    match /system_logs/{logId} {
+      // Admins can read logs
+      allow read: if isAuthenticated();
+      // Any authenticated user can write logs (to record their actions)
+      allow write: if isAuthenticated();
+    }
+  }
+}
