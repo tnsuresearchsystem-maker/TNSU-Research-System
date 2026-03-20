@@ -185,6 +185,9 @@ export const TRANSLATIONS = {
 
     // User Management
     username: "Username",
+    fullName: "First and Last Name",
+    caretaker: "Caretaker / Manager",
+    phoneNumber: "Contact Phone Number",
     password: "Password",
     email: "Email Address",
     confirmDeleteUser: "Are you sure you want to delete this user? This action cannot be undone.",
@@ -419,6 +422,9 @@ export const TRANSLATIONS = {
 
     // User Management
     username: "ชื่อผู้ใช้งาน (Username)",
+    fullName: "ชื่อ-นามสกุล",
+    caretaker: "ผู้ดูแล",
+    phoneNumber: "เบอร์โทรศัพท์ติดต่อ",
     password: "รหัสผ่าน",
     email: "อีเมล (Email)",
     confirmDeleteUser: "ยืนยันการลบผู้ใช้งานรายนี้? (ไม่สามารถกู้คืนได้)",

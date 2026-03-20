@@ -5,7 +5,7 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyDtGRy3viI5kCWhlrjT1I2_rJaZpmlzj2k",
   authDomain: "tnsu-research-system.firebaseapp.com",
   projectId: "tnsu-research-system",

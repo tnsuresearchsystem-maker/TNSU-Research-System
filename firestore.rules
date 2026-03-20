@@ -40,8 +40,8 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Anyone authenticated can read users (needed for resolving names, etc.)
-      allow read: if isAuthenticated();
+      // Anyone can read users (needed for resolving names, legacy login)
+      allow read: if true;
       // Users can update their own profile, Admins can do anything
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();

@@ -34,11 +34,15 @@ const Login: React.FC = () => {
     
     if (org && username && password) {
       setLoading(true);
-      const success = await login(username, password, org);
-      setLoading(false);
-      
-      if (!success) {
-        setError(t('loginError'));
+      try {
+        const success = await login(username, password, org);
+        if (!success) {
+          setError(t('loginError'));
+        }
+      } catch (err: any) {
+        setError(err.message || t('loginError'));
+      } finally {
+        setLoading(false);
       }
     }
   };

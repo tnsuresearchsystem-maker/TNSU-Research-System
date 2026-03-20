@@ -42,7 +42,10 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
       role: formData.role || 'User',
       password: formData.password || (initialData ? initialData.password : 'password123'), // Keep old password if editing and not changed, default for new
       organization: org,
-      mustChangePassword: formData.mustChangePassword !== undefined ? formData.mustChangePassword : true // Default to true for new users
+      mustChangePassword: formData.mustChangePassword !== undefined ? formData.mustChangePassword : true, // Default to true for new users
+      fullName: formData.fullName,
+      caretaker: formData.caretaker,
+      phoneNumber: formData.phoneNumber
     };
 
     onSave(userToSave);
@@ -86,6 +89,42 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
             onChange={handleChange}
             className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
             required
+          />
+        </div>
+
+        {/* Full Name */}
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('fullName')}</label>
+          <input 
+            type="text" 
+            name="fullName" 
+            value={formData.fullName || ''} 
+            onChange={handleChange}
+            className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
+          />
+        </div>
+
+        {/* Caretaker */}
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('caretaker')}</label>
+          <input 
+            type="text" 
+            name="caretaker" 
+            value={formData.caretaker || ''} 
+            onChange={handleChange}
+            className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
+          />
+        </div>
+
+        {/* Phone Number */}
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('phoneNumber')}</label>
+          <input 
+            type="tel" 
+            name="phoneNumber" 
+            value={formData.phoneNumber || ''} 
+            onChange={handleChange}
+            className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-tnsu-green-500 focus:border-tnsu-green-500"
           />
         </div>
 

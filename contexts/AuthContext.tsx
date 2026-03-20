@@ -48,22 +48,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (identifier: string, password: string, organization: Organization): Promise<boolean> => {
-    // Use the new Firebase Auth Service
-    const authUser = await loginWithFirebase(identifier, password);
-    
-    if (authUser) {
-      // Security: Ensure the user belongs to the selected organization
-      if (authUser.organization.id !== organization.id) {
-         console.warn(`Login mismatch: User ${authUser.username} belongs to ${authUser.organization.id} but tried to login to ${organization.id}`);
-         // If mismatch, logout immediately
-         await logoutUser();
-         return false;
-      }
+    try {
+      // Use the new Firebase Auth Service
+      const authUser = await loginWithFirebase(identifier, password);
       
-      setUser(authUser);
-      return true;
+      if (authUser) {
+        // Security: Ensure the user belongs to the selected organization
+        if (authUser.organization.id !== organization.id) {
+           console.warn(`Login mismatch: User ${authUser.username} belongs to ${authUser.organization.id} but tried to login to ${organization.id}`);
+           // If mismatch, logout immediately
+           await logoutUser();
+           return false;
+        }
+        
+        setUser(authUser);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     }
-    return false;
   };
 
   const logout = async () => {

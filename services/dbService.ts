@@ -1,7 +1,7 @@
 
 import { db, auth } from "../firebaseConfig";
 import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, setDoc, doc } from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword, updateEmail } from "firebase/auth";
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
 import { initialUsers } from "./mockData";
 
@@ -549,9 +549,8 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
         } else {
             // If we can't resolve the username, and it's not an email, we fail.
             // The user must use Email to login if not in mock data and DB is locked.
-            console.error("Could not resolve username to email via DB or Mock.");
             // We can't proceed without an email
-            return null;
+            throw new Error("Could not resolve username. Please login with your email address.");
         }
     }
   }
@@ -617,14 +616,35 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
             try {
                 // Try to Auto-Register in Firebase Auth to enable persistence for next time
                 console.log("Attempting to migrate legacy user to Firebase Auth...");
-                const newCred = await createUserWithEmailAndPassword(auth, email, pass);
+                let newCred;
+                try {
+                    newCred = await createUserWithEmailAndPassword(auth, email, pass);
+                } catch (createErr: any) {
+                    if (createErr.code === 'auth/email-already-in-use' || createErr.code === 'auth/invalid-email') {
+                        console.warn(`Email ${email} failed (${createErr.code}). Generating unique fallback email for migration...`);
+                        const fallbackEmail = `${userProfile.username}_${Date.now()}@demo.local`;
+                        newCred = await createUserWithEmailAndPassword(auth, fallbackEmail, pass);
+                        userProfile.email = fallbackEmail; // Update profile email to match Auth
+                    } else {
+                        throw createErr;
+                    }
+                }
+                
+                const oldId = userProfile.id;
+                userProfile.id = newCred.user.uid; // Update ID to match Auth UID
                 
                 // CRITICAL FIX: Create Firestore Document for the new Auth User
                 // This ensures security rules (which check request.auth.uid) can find the user's role
-                await setDoc(doc(db, USERS_COL, newCred.user.uid), {
-                    ...userProfile,
-                    id: newCred.user.uid // Use Auth UID as Document ID
-                });
+                await setDoc(doc(db, USERS_COL, newCred.user.uid), userProfile);
+                
+                // Delete the old legacy document if the ID changed
+                if (oldId && oldId !== newCred.user.uid) {
+                    try {
+                        await deleteDoc(doc(db, USERS_COL, oldId));
+                    } catch (delErr) {
+                        console.warn("Failed to delete old legacy document:", delErr);
+                    }
+                }
                 
                 await logUserActivity(userProfile, 'UPDATE', 'System', 'Auto-migrated user to Firebase Auth & Firestore');
             } catch (createErr: any) {
@@ -703,11 +723,11 @@ export const sendUserPasswordResetEmail = async (email: string): Promise<{ succe
 };
 
 // 2. Change Password (Logged in User)
-export const changeMyPassword = async (user: User, oldPass: string, newPass: string): Promise<{ success: boolean; message?: string }> => {
+export const changeMyPassword = async (user: User, oldPass: string, newPass: string, newEmail?: string): Promise<{ success: boolean; message?: string }> => {
   const currentUser = auth.currentUser;
   
   // A: Firebase Auth User
-  if (currentUser && currentUser.email === user.email && currentUser.email) {
+  if (currentUser && currentUser.email) {
     try {
       // Re-authenticate first
       const credential = EmailAuthProvider.credential(currentUser.email, oldPass);
@@ -716,21 +736,26 @@ export const changeMyPassword = async (user: User, oldPass: string, newPass: str
       // Update Password
       await updatePassword(currentUser, newPass);
       
+      // Update Email if provided and different
+      if (newEmail && newEmail !== currentUser.email) {
+          await updateEmail(currentUser, newEmail);
+      }
+      
       // Sync with Firestore (Optional, but keeps legacy field updated)
-      await updateUserInDB({ ...user, password: newPass, mustChangePassword: false }, user);
-      await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password');
+      await updateUserInDB({ ...user, password: newPass, email: newEmail || user.email, mustChangePassword: false }, user);
+      await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password and/or email');
       
       return { success: true };
     } catch (error: any) {
-      console.error("Change password error:", error);
-      return { success: false, message: error.message || "Failed to update password. Check your old password." };
+      console.error("Change password/email error:", error);
+      return { success: false, message: error.message || "Failed to update password/email. Check your old password." };
     }
   } 
   
   // B: Legacy User (Fallback)
   else {
     if (user.password === oldPass) {
-       await updateUserInDB({ ...user, password: newPass, mustChangePassword: false }, user);
+       await updateUserInDB({ ...user, password: newPass, email: newEmail || user.email, mustChangePassword: false }, user);
        // Skip logging if not auth'd to prevent permission error
        // await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password (Legacy)');
        return { success: true };

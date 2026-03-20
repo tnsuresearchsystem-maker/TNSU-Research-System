@@ -116,7 +116,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
           email: row.email,
           role: row.role.toLowerCase() === 'admin' ? 'Admin' : 'User',
           password: 'TNSU1234', // Default password
-          organization: org
+          organization: org,
+          fullName: row.fullName,
+          caretaker: row.caretaker,
+          phoneNumber: row.phoneNumber
         });
       }
     }
@@ -186,7 +189,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                       password: u.password || 'N/A',
                       email: u.email,
                       role: u.role,
-                      campus_id: u.organization.id
+                      campus_id: u.organization.id,
+                      fullName: u.fullName || '',
+                      caretaker: u.caretaker || '',
+                      phoneNumber: u.phoneNumber || ''
                     }));
                     exportToCSV(mappedUsers, 'user', `users_${new Date().toISOString().split('T')[0]}`);
                   }}
@@ -217,10 +223,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('username')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('username')} / {t('fullName')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('role')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('email')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')} / {t('caretaker')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('email')} / {t('phoneNumber')}</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
@@ -234,6 +240,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                          </div>
                          <div className="flex flex-col">
                            <span className="text-sm font-medium text-gray-900">{user.username}</span>
+                           {user.fullName && <span className="text-xs text-gray-500">{user.fullName}</span>}
                            {user.mustChangePassword && (
                              <span className="text-xs text-orange-500 flex items-center mt-0.5">
                                <span className="material-icons text-[10px] mr-1">warning</span>
@@ -249,14 +256,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {language === 'th' ? user.organization.nameTh : user.organization.nameEn}
+                      <div className="text-gray-900">{language === 'th' ? user.organization.nameTh : user.organization.nameEn}</div>
                       <div className="text-xs text-gray-400">
                         {user.organization.type === OrganizationType.OfficePresident ? (language === 'th' ? 'ส่วนกลาง' : 'Central') : 
                          user.organization.type === OrganizationType.Campus ? (language === 'th' ? 'วิทยาเขต/คณะ' : 'Campus/Faculty') : 
                          (language === 'th' ? 'โรงเรียนกีฬา' : 'Sports School')}
                       </div>
+                      {user.caretaker && <div className="text-xs text-gray-500 mt-1"><span className="font-medium">{t('caretaker')}:</span> {user.caretaker}</div>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{user.email}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <div className="text-gray-900">{user.email}</div>
+                      {user.phoneNumber && <div className="text-xs text-gray-500 mt-1"><span className="font-medium">{t('phoneNumber')}:</span> {user.phoneNumber}</div>}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-3">
                         <button 

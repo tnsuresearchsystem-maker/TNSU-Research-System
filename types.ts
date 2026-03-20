@@ -192,6 +192,9 @@ export interface User {
   organization: Organization; // Stores full Org object for easier context
   role: 'Admin' | 'User';
   mustChangePassword?: boolean;
+  fullName?: string;
+  caretaker?: string;
+  phoneNumber?: string;
 }
 
 // --- LOGGING SYSTEM ---
