@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PersonnelDevelopment, FiscalYear, DevelopmentType, ApprovalStatus } from '../types';
-import { FISCAL_YEARS, DEVELOPMENT_TYPES, ALL_ORGANIZATIONS } from '../constants';
+import { FISCAL_YEARS, DEVELOPMENT_TYPES, ALL_ORGANIZATIONS, FACULTIES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,6 +19,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
     fiscal_year: FiscalYear.Y2568,
     development_type: DevelopmentType.Training,
     organization_name: user?.organization.nameEn || '',
+    faculty: '',
     duration_hours: 0,
     activity_date: new Date().toISOString().split('T')[0],
     staff_name: '',
@@ -46,6 +47,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
       id: initialData?.id || `pd_${Math.random().toString(36).substr(2, 6)}`,
       fiscal_year: formData.fiscal_year || FiscalYear.Y2568,
       staff_name: formData.staff_name,
+      faculty: formData.faculty,
       organization_name: formData.organization_name,
       development_type: formData.development_type || DevelopmentType.Training,
       course_name: formData.course_name,
@@ -149,6 +151,25 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
           />
         </div>
 
+        {/* Faculty */}
+        <div className="col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('faculty') || 'Faculty (คณะ)'}</label>
+          <select 
+            name="faculty" 
+            value={formData.faculty || ''} 
+            onChange={handleChange}
+            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 bg-white"
+            required
+          >
+             <option value="">{t('selectFaculty') || 'Select Faculty'}</option>
+            {FACULTIES.map(fac => (
+              <option key={fac.id} value={fac.id}>
+                 {language === 'th' ? fac.nameTh : fac.nameEn}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Organization Name */}
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('campusOrg')}</label>
@@ -156,8 +177,9 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
             name="organization_name" 
             value={formData.organization_name || ''} 
             onChange={handleChange}
-            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 bg-white"
+            className={`w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
             required
+            disabled={!isAdmin}
           >
              <option value="">{t('selectOrg')}</option>
             {ALL_ORGANIZATIONS.map(org => (

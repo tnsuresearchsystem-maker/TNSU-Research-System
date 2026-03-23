@@ -19,9 +19,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
     funding_fiscal_year: FiscalYear.Y2568,
     status: ProjectStatus.Ongoing,
     funding_source: FundingSource.Internal,
-    research_category: ResearchCategory.SportsScienceHealth,
+    research_category: ResearchCategory.SportsScience,
     // Default to user's organization if adding new
     campus_id: user?.organization.nameEn || '',
+    owner_organization: user?.organization.nameEn || '',
     approval_status: ApprovalStatus.Draft
   });
 
@@ -144,20 +145,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
         {/* Campus/Organization */}
         <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('campusOrg')}</label>
-          <select 
-            name="campus_id" 
-            value={formData.campus_id || ''} 
+          <input 
+            type="text"
+            list="org-list"
+            name="owner_organization" 
+            value={formData.owner_organization || formData.campus_id || ''} 
             onChange={handleChange}
             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 transition-all hover:border-tnsu-green-300"
             required
-          >
-             <option value="">{t('selectOrg')}</option>
+            placeholder={t('selectOrg')}
+          />
+          <datalist id="org-list">
             {ALL_ORGANIZATIONS.map(org => (
-              <option key={org.id} value={org.nameEn}>
-                 {language === 'th' ? org.nameTh : org.nameEn}
-              </option>
+              <option key={org.id} value={language === 'th' ? org.nameTh : org.nameEn} />
             ))}
-          </select>
+          </datalist>
         </div>
 
         {/* Project Name (Thai) */}

@@ -39,7 +39,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
   return (
     <div className="space-y-6 animate-fade-in-up font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
         <div className="flex items-center space-x-4">
           <button 
             onClick={onBack}
@@ -53,7 +53,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
           </div>
         </div>
         
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
             onClick={handleDelete}
             className="flex items-center space-x-2 px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-all shadow-sm"

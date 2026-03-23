@@ -4,56 +4,56 @@ export type CSVType = 'project' | 'publication' | 'utilization' | 'personnel' | 
 
 export const HEADERS: Record<CSVType, string[]> = {
   project: [
-    'project_id', 'funding_fiscal_year', 'campus_id', 'project_name', 
-    'head_researcher', 'budget_amount', 'funding_source', 'research_category', 'status'
+    'project_id', 'funding_fiscal_year', 'reporting_period', 'campus_id', 'project_name', 'project_name_en',
+    'head_researcher', 'budget_amount', 'funding_source', 'research_category', 'status', 'approval_status'
   ],
   publication: [
-    'ref_project_id', 'output_reporting_year', 'article_title', 
-    'publication_level', 'publication_type', 'is_published'
+    'output_id', 'ref_project_id', 'campus_id', 'project_name', 'output_reporting_year', 'article_title', 
+    'publication_level', 'publication_type', 'is_published', 'approval_status'
   ],
   utilization: [
-    'ref_project_id', 'utilization_reporting_year', 'utilization_type', 'description'
+    'id', 'ref_project_id', 'campus_id', 'project_name', 'utilization_reporting_year', 'utilization_type', 'description', 'approval_status'
   ],
   personnel: [
-    'fiscal_year', 'staff_name', 'organization_name', 'development_type', 
-    'course_name', 'activity_date', 'duration_hours'
+    'id', 'fiscal_year', 'staff_name', 'faculty', 'organization_name', 'development_type', 
+    'course_name', 'activity_date', 'duration_hours', 'approval_status'
   ],
   mou: [
-    'fiscal_year', 'external_org_name', 'sign_date', 'scope'
+    'id', 'fiscal_year', 'external_org_name', 'sign_date', 'scope', 'campus_id', 'approval_status'
   ],
   ip: [
-    'fiscal_year', 'work_name', 'ip_type', 'request_number', 'registration_date'
+    'id', 'fiscal_year', 'work_name', 'ip_type', 'request_number', 'registration_date', 'campus_id', 'approval_status'
   ],
   user: [
-    'username', 'password', 'email', 'role', 'campus_id', 'fullName', 'caretaker', 'phoneNumber'
+    'id', 'username', 'password', 'email', 'role', 'campus_id', 'fullName', 'caretaker', 'phoneNumber'
   ]
 };
 
 const EXAMPLES: Record<CSVType, any[]> = {
   project: [{
-    project_id: 'p_12345', funding_fiscal_year: '2568', campus_id: 'c_chiangmai', 
-    project_name: 'Example Project', head_researcher: 'Dr. Somchai', 
-    budget_amount: 50000, funding_source: 'Internal', research_category: 'Sports Science', status: 'Ongoing'
+    project_id: 'p_12345', funding_fiscal_year: '2568', reporting_period: '12 Months', campus_id: 'c_chiangmai', 
+    project_name: 'Example Project', project_name_en: 'Example Project EN', head_researcher: 'Dr. Somchai', 
+    budget_amount: 50000, funding_source: 'Internal', research_category: 'ด้านศาสตร์การกีฬา', status: 'Ongoing', approval_status: 'Approved'
   }],
   publication: [{
-    ref_project_id: 'p_12345', output_reporting_year: '2568', article_title: 'Example Article',
-    publication_level: 'National', publication_type: 'TCI 1', is_published: 'TRUE'
+    output_id: 'o_12345', ref_project_id: 'p_12345', campus_id: 'c_chiangmai', project_name: 'Example Project', output_reporting_year: '2568', article_title: 'Example Article',
+    publication_level: 'National', publication_type: 'TCI Group 1', is_published: 'TRUE', approval_status: 'Approved'
   }],
   utilization: [{
-    ref_project_id: 'p_12345', utilization_reporting_year: '2568', utilization_type: 'Academic', description: 'Used in curriculum'
+    id: 'u_12345', ref_project_id: 'p_12345', campus_id: 'c_chiangmai', project_name: 'Example Project', utilization_reporting_year: '2568', utilization_type: 'Academic', description: 'Used in curriculum', approval_status: 'Approved'
   }],
   personnel: [{
-    fiscal_year: '2568', staff_name: 'Somying', organization_name: 'c_bangkok', development_type: 'Training',
-    course_name: 'Advanced Research', activity_date: '2025-01-15', duration_hours: 6
+    id: 'pe_12345', fiscal_year: '2568', staff_name: 'Somying', faculty: 'คณะวิทยาศาสตร์การกีฬาและสุขภาพ', organization_name: 'c_bangkok', development_type: 'Training',
+    course_name: 'Advanced Research', activity_date: '2025-01-15', duration_hours: 6, approval_status: 'Approved'
   }],
   mou: [{
-    fiscal_year: '2568', external_org_name: 'SAT', sign_date: '2025-02-01', scope: 'Academic Exchange'
+    id: 'm_12345', fiscal_year: '2568', external_org_name: 'SAT', sign_date: '2025-02-01', scope: 'Academic Exchange', campus_id: 'c_chiangmai', approval_status: 'Approved'
   }],
   ip: [{
-    fiscal_year: '2568', work_name: 'New Device', ip_type: 'Patent', request_number: '123456', registration_date: '2025-03-01'
+    id: 'i_12345', fiscal_year: '2568', work_name: 'New Device', ip_type: 'Patent', request_number: '123456', registration_date: '2025-03-01', campus_id: 'c_chiangmai', approval_status: 'Approved'
   }],
   user: [{
-    username: 'user1', password: 'password123', email: 'user1@tnsu.ac.th', role: 'User', campus_id: 'c_chiangmai', fullName: 'Somchai Jaidee', caretaker: 'Dr. Somsri', phoneNumber: '0812345678'
+    id: 'user_12345', username: 'user1', password: 'password123', email: 'user1@tnsu.ac.th', role: 'User', campus_id: 'c_chiangmai', fullName: 'Somchai Jaidee', caretaker: 'Dr. Somsri', phoneNumber: '0812345678'
   }]
 };
 

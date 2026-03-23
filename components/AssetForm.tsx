@@ -20,7 +20,7 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
   const [mouData, setMouData] = useState<Partial<MOU>>({
     fiscal_year: FiscalYear.Y2568,
     sign_date: new Date().toISOString().split('T')[0],
-    campus_id: ALL_ORGANIZATIONS[0].id, // Default to first org
+    campus_id: user?.organization.id || ALL_ORGANIZATIONS[0].id, // Default to user's org
     approval_status: ApprovalStatus.Draft
   });
 
@@ -29,7 +29,7 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
     fiscal_year: FiscalYear.Y2568,
     ip_type: IPType.Patent,
     registration_date: new Date().toISOString().split('T')[0],
-    campus_id: ALL_ORGANIZATIONS[0].id, // Default to first org
+    campus_id: user?.organization.id || ALL_ORGANIZATIONS[0].id, // Default to user's org
     approval_status: ApprovalStatus.Draft
   });
 
@@ -124,8 +124,9 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
           <select 
             value={type === 'mou' ? mouData.campus_id : ipData.campus_id} 
             onChange={(e) => type === 'mou' ? setMouData({...mouData, campus_id: e.target.value}) : setIpData({...ipData, campus_id: e.target.value})}
-            className="w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-purple-500 focus:border-purple-500"
+            className={`w-full border-gray-300 rounded-lg shadow-sm border p-2.5 focus:ring-purple-500 focus:border-purple-500 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             required
+            disabled={!isAdmin}
           >
             {ALL_ORGANIZATIONS.map(org => (
               <option key={org.id} value={org.id}>

@@ -155,7 +155,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
       {activeTab === 'users' ? (
         <>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-             <div className="flex gap-2 w-full md:w-auto flex-grow max-w-2xl">
+             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-grow max-w-2xl">
                 {/* Search Box */}
                 <div className="relative flex-grow">
                   <input 
@@ -181,10 +181,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                 </select>
              </div>
              
-             <div className="flex space-x-3">
+             <div className="flex flex-wrap gap-2 md:gap-3">
                 <button 
                   onClick={() => {
                     const mappedUsers = filteredUsers.map(u => ({
+                      id: u.id,
                       username: u.username,
                       password: u.password || 'N/A',
                       email: u.email,

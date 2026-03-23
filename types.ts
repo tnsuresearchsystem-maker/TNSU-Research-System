@@ -21,9 +21,9 @@ export enum FundingSource {
 }
 
 export enum ResearchCategory {
-  SportsScienceHealth = "Faculty of Sports Science and Health",
-  LiberalArts = "Faculty of Liberal Arts",
-  Education = "Faculty of Education",
+  SportsScience = "ด้านศาสตร์การกีฬา",
+  TeachingEducation = "ด้านการเรียนการสอน",
+  Others = "ด้านอื่นๆ (เช่น การท่องเที่ยว การสื่อสาร ภาษา สังคม เป็นต้น)",
 }
 
 export enum ProjectStatus {
@@ -83,7 +83,8 @@ export interface ProjectMaster {
   project_id: string;
   funding_fiscal_year: FiscalYear;
   reporting_period?: ReportingPeriod;
-  campus_id: string; // Used generically for Organization Name
+  campus_id: string; // Used generically for Organization Name (The campus that recorded it)
+  owner_organization?: string; // Free text for owner organization
   project_name: string; // Thai Name
   project_name_en?: string; // English Name (Optional for backward compat, but we will add it)
   head_researcher: string;
@@ -98,6 +99,7 @@ export interface PersonnelDevelopment {
   id: string;
   fiscal_year: FiscalYear;
   staff_name: string;
+  faculty?: string; // Faculty name
   organization_name: string; // Faculty/Campus name
   development_type: DevelopmentType;
   course_name: string;
@@ -105,6 +107,14 @@ export interface PersonnelDevelopment {
   duration_hours: number;
   certificate_url?: string; // Simulated URL/Filename
   approval_status?: ApprovalStatus;
+}
+
+export interface FacultyLecturerCount {
+  id: string;
+  campus_id: string;
+  fiscal_year: FiscalYear;
+  faculty: string;
+  total_lecturers: number;
 }
 
 export interface PublicationOutput {
@@ -189,6 +199,7 @@ export interface User {
   username: string;
   password?: string; // Optional because we might not retrieve it to UI
   email: string;
+  authEmail?: string; // Used to store the actual Firebase Auth email if 'email' is changed but Auth cannot be updated
   organization: Organization; // Stores full Org object for easier context
   role: 'Admin' | 'User';
   mustChangePassword?: boolean;

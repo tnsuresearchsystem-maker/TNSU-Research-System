@@ -16,7 +16,7 @@ export const initialProjects: ProjectMaster[] = [
     head_researcher: "Dr. Somchai Jai-dee",
     budget_amount: 500000,
     funding_source: FundingSource.Internal,
-    research_category: ResearchCategory.SportsScienceHealth,
+    research_category: ResearchCategory.SportsScience,
     status: ProjectStatus.Completed,
     approval_status: ApprovalStatus.Approved
   },
@@ -29,7 +29,7 @@ export const initialProjects: ProjectMaster[] = [
     head_researcher: "Prof. Wilai Srisuk",
     budget_amount: 1200000,
     funding_source: FundingSource.External,
-    research_category: ResearchCategory.SportsScienceHealth,
+    research_category: ResearchCategory.SportsScience,
     status: ProjectStatus.Ongoing,
     approval_status: ApprovalStatus.Approved
   },
@@ -42,7 +42,7 @@ export const initialProjects: ProjectMaster[] = [
     head_researcher: "Dr. Arthit Sun",
     budget_amount: 300000,
     funding_source: FundingSource.Internal,
-    research_category: ResearchCategory.LiberalArts,
+    research_category: ResearchCategory.Others,
     status: ProjectStatus.Completed,
     approval_status: ApprovalStatus.Approved
   },
@@ -55,7 +55,7 @@ export const initialProjects: ProjectMaster[] = [
     head_researcher: "Ms. Ratana Ploy",
     budget_amount: 150000,
     funding_source: FundingSource.NonBudget,
-    research_category: ResearchCategory.Education,
+    research_category: ResearchCategory.TeachingEducation,
     status: ProjectStatus.Ongoing,
     approval_status: ApprovalStatus.Approved
   }

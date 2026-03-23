@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { changeMyPassword, updateUserInDB } from '../services/dbService';
 import { useAuth } from '../contexts/AuthContext';
+import { User } from '../types';
 
 export const ChangePasswordForm: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -40,7 +41,7 @@ export const ChangePasswordForm: React.FC = () => {
     
     if (result.success) {
       // Update profile info
-      const updatedUser = { 
+      const updatedUser: User = { 
         ...user, 
         caretaker, 
         phoneNumber, 
@@ -48,9 +49,17 @@ export const ChangePasswordForm: React.FC = () => {
         mustChangePassword: false 
       };
       
+      if (result.authEmail) {
+          updatedUser.authEmail = result.authEmail;
+      }
+      
       try {
         await updateUserInDB(updatedUser, user);
         updateUser(updatedUser);
+        if (result.message) {
+            // If there's a message but it was successful, it's a warning (like email not fully updated)
+            setError(result.message);
+        }
       } catch (err: any) {
         setError('Password changed, but failed to update profile info: ' + err.message);
       }

@@ -10,11 +10,11 @@ import AssetForm from './components/AssetForm';
 import UserForm from './components/UserForm';
 import UserManagement from './components/UserManagement';
 import ProjectDetails from './components/ProjectDetails';
-import Chatbot from './components/Chatbot';
 import Login from './components/Login';
 import CSVImportModal from './components/CSVImportModal';
-import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, ReportingPeriod } from './types';
-import { FISCAL_YEARS, ALL_ORGANIZATIONS, REGIONS } from './constants';
+import FacultyLecturerModal from './components/FacultyLecturerModal';
+import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, ReportingPeriod, ResearchCategory, ProjectStatus } from './types';
+import { FISCAL_YEARS, ALL_ORGANIZATIONS, REGIONS, FACULTIES } from './constants';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
@@ -44,6 +44,7 @@ function AppContent() {
   const [showPubForm, setShowPubForm] = useState(false);
   const [showUtilForm, setShowUtilForm] = useState(false);
   const [showPersonnelForm, setShowPersonnelForm] = useState(false);
+  const [showFacultyModal, setShowFacultyModal] = useState(false);
   const [showAssetFormType, setShowAssetFormType] = useState<'mou' | 'ip' | null>(null);
   const [showUserForm, setShowUserForm] = useState(false);
   const [csvImportType, setCsvImportType] = useState<CSVType | null>(null);
@@ -62,21 +63,25 @@ function AppContent() {
   const [filterCampus, setFilterCampus] = useState<string>('');
   const [filterReportingPeriod, setFilterReportingPeriod] = useState<string>('');
   const [filterRegion, setFilterRegion] = useState<string>('');
+  const [filterResearchCategory, setFilterResearchCategory] = useState<string>('');
+  const [filterProjectStatus, setFilterProjectStatus] = useState<string>('');
 
   // Fetch Data function
   const fetchData = async () => {
     setIsLoading(true);
     setAppError(null);
     try {
+      // Fetch projects first because publications and utilizations depend on them for filtering if not Admin
+      const fetchedProjects = await getProjectsFromDB(user);
+      
       // If admin, fetch users too
       // Note: Passing the array literal directly to Promise.all ensures proper tuple type inference
-      const [fetchedProjects, fetchedPubs, fetchedUtils, fetchedPersonnel, fetchedMOUs, fetchedIPs] = await Promise.all([
-        getProjectsFromDB(),
-        getPublicationsFromDB(),
-        getUtilizationsFromDB(),
-        getPersonnelFromDB(),
-        getMOUsFromDB(),
-        getIPsFromDB()
+      const [fetchedPubs, fetchedUtils, fetchedPersonnel, fetchedMOUs, fetchedIPs] = await Promise.all([
+        getPublicationsFromDB(user, fetchedProjects),
+        getUtilizationsFromDB(user, fetchedProjects),
+        getPersonnelFromDB(user),
+        getMOUsFromDB(user),
+        getIPsFromDB(user)
       ]);
       
       setProjects(fetchedProjects);
@@ -322,18 +327,84 @@ function AppContent() {
 
   const handleCSVImport = async (data: any[]) => {
     try {
+      const mapCampusId = (input: string) => {
+        if (user?.role !== 'Admin') {
+          return user?.organization.nameEn || '';
+        }
+        if (!input) return '';
+        const org = ALL_ORGANIZATIONS.find(o => o.nameEn.toLowerCase() === input.toLowerCase() || o.nameTh === input || o.id.toLowerCase() === input.toLowerCase());
+        return org ? org.nameEn : input;
+      };
+
+      const mapProjectStatus = (input: string) => {
+        if (!input) return ProjectStatus.Ongoing;
+        const lower = input.toLowerCase();
+        if (lower.includes('ongoing') || lower.includes('กำลังดำเนินการ')) return ProjectStatus.Ongoing;
+        if (lower.includes('completed') || lower.includes('เสร็จสิ้น')) return ProjectStatus.Completed;
+        if (lower.includes('terminated') || lower.includes('ยกเลิก')) return ProjectStatus.Terminated;
+        return ProjectStatus.Ongoing;
+      };
+
+      const mapApprovalStatus = (input: string) => {
+        if (!input) return 'Draft';
+        const lower = input.toLowerCase();
+        if (lower.includes('approved') || lower.includes('อนุมัติ')) return 'Approved';
+        if (lower.includes('pending') || lower.includes('รอตรวจสอบ')) return 'Pending Review';
+        if (lower.includes('rejected') || lower.includes('ปฏิเสธ')) return 'Rejected';
+        if (lower.includes('request') || lower.includes('แก้ไข')) return 'Request Change';
+        return 'Draft';
+      };
+
       if (csvImportType === 'project') {
-        await Promise.all(data.map(item => addProjectToDB(item as ProjectMaster)));
+        const mappedData = data.map(item => {
+          let rc = item.research_category;
+          if (rc === 'Sports Science') rc = 'ด้านศาสตร์การกีฬา';
+          else if (rc === 'Teaching/Education') rc = 'ด้านการเรียนการสอน';
+          else if (rc === 'Others (e.g., Tourism, Communication, Language, Society)') rc = 'ด้านอื่นๆ (เช่น การท่องเที่ยว การสื่อสาร ภาษา สังคม เป็นต้น)';
+          return { 
+            ...item, 
+            research_category: rc, 
+            campus_id: mapCampusId(item.campus_id),
+            status: mapProjectStatus(item.status),
+            approval_status: mapApprovalStatus(item.approval_status)
+          } as ProjectMaster;
+        });
+        await Promise.all(mappedData.map(item => addProjectToDB(item)));
       } else if (csvImportType === 'publication') {
-        await Promise.all(data.map(item => addPublicationToDB(item as PublicationOutput)));
+        const mappedData = data.map(item => ({ 
+          ...item, 
+          campus_id: mapCampusId(item.campus_id),
+          approval_status: mapApprovalStatus(item.approval_status)
+        } as PublicationOutput));
+        await Promise.all(mappedData.map(item => addPublicationToDB(item)));
       } else if (csvImportType === 'utilization') {
-        await Promise.all(data.map(item => addUtilizationToDB(item as Utilization)));
+        const mappedData = data.map(item => ({ 
+          ...item, 
+          campus_id: mapCampusId(item.campus_id),
+          approval_status: mapApprovalStatus(item.approval_status)
+        } as Utilization));
+        await Promise.all(mappedData.map(item => addUtilizationToDB(item)));
       } else if (csvImportType === 'personnel') {
-        await Promise.all(data.map(item => addPersonnelToDB(item as PersonnelDevelopment)));
+        const mappedData = data.map(item => ({ 
+          ...item, 
+          organization_name: mapCampusId(item.organization_name),
+          approval_status: mapApprovalStatus(item.approval_status)
+        } as PersonnelDevelopment));
+        await Promise.all(mappedData.map(item => addPersonnelToDB(item)));
       } else if (csvImportType === 'mou') {
-        await Promise.all(data.map(item => addMOUToDB(item as MOU)));
+        const mappedData = data.map(item => ({ 
+          ...item, 
+          campus_id: mapCampusId(item.campus_id),
+          approval_status: mapApprovalStatus(item.approval_status)
+        } as MOU));
+        await Promise.all(mappedData.map(item => addMOUToDB(item)));
       } else if (csvImportType === 'ip') {
-        await Promise.all(data.map(item => addIPToDB(item as IntellectualProperty)));
+        const mappedData = data.map(item => ({ 
+          ...item, 
+          campus_id: mapCampusId(item.campus_id),
+          approval_status: mapApprovalStatus(item.approval_status)
+        } as IntellectualProperty));
+        await Promise.all(mappedData.map(item => addIPToDB(item)));
       } else if (csvImportType === 'user') {
         // Users are handled specially in handleBulkAddUsers, but we can reuse logic or call it here
         // For simplicity, let's just use the existing logic if possible, or reimplement
@@ -357,6 +428,13 @@ function AppContent() {
       console.error("Import error:", error);
       alert("Error importing data. Please check the console and your CSV format.");
     }
+  };
+
+  const getFacultyName = (facultyId: string | undefined) => {
+    if (!facultyId) return '-';
+    const fac = FACULTIES.find(f => f.id === facultyId);
+    if (!fac) return facultyId; // Fallback to raw value if not found (e.g. old data)
+    return language === 'th' ? fac.nameTh : fac.nameEn;
   };
 
   const renderContent = () => {
@@ -413,6 +491,8 @@ function AppContent() {
         if (filterFiscalYear && p.funding_fiscal_year !== filterFiscalYear) return false;
         if (filterCampus && p.campus_id !== filterCampus) return false;
         if (filterReportingPeriod && p.reporting_period !== filterReportingPeriod) return false;
+        if (filterResearchCategory && p.research_category !== filterResearchCategory) return false;
+        if (filterProjectStatus && p.status !== filterProjectStatus) return false;
         
         if (filterRegion) {
           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.campus_id);
@@ -427,9 +507,9 @@ function AppContent() {
 
       return (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
              <h2 className="text-2xl font-bold text-gray-800">{t('projects')}</h2>
-             <div className="flex space-x-3">
+             <div className="flex flex-wrap gap-2 md:gap-3">
                {/* Region Filter (Admin only) */}
                {user?.role === 'Admin' && (
                  <select
@@ -437,7 +517,7 @@ function AppContent() {
                    onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
                    className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
                  >
-                   <option value="">{t('allRegions') || 'All Regions'}</option>
+                   <option value="">{t('allRegions')}</option>
                    {REGIONS.map(region => (
                      <option key={region} value={region}>
                        {language === 'th' ? 
@@ -457,7 +537,7 @@ function AppContent() {
                    onChange={(e) => setFilterCampus(e.target.value)}
                    className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
                  >
-                   <option value="">{t('allOrgs') || 'All Organizations'}</option>
+                   <option value="">{t('allOrgs')}</option>
                    {ALL_ORGANIZATIONS
                      .filter(org => !filterRegion || org.region === filterRegion)
                      .map(org => (
@@ -473,7 +553,7 @@ function AppContent() {
                  onChange={(e) => setFilterReportingPeriod(e.target.value)}
                  className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
                >
-                 <option value="">{t('allPeriods') || 'All Periods'}</option>
+                 <option value="">{t('allPeriods')}</option>
                  <option value={ReportingPeriod.Round6Months}>{ReportingPeriod.Round6Months}</option>
                  <option value={ReportingPeriod.Round12Months}>{ReportingPeriod.Round12Months}</option>
                </select>
@@ -486,6 +566,28 @@ function AppContent() {
                  <option value="">{t('allYears')}</option>
                  {FISCAL_YEARS.map(year => (
                    <option key={year} value={year}>{year}</option>
+                 ))}
+               </select>
+               {/* Academic Discipline Filter */}
+               <select
+                 value={filterResearchCategory}
+                 onChange={(e) => setFilterResearchCategory(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allDisciplines')}</option>
+                 {Object.values(ResearchCategory).map(category => (
+                   <option key={category} value={category}>{category}</option>
+                 ))}
+               </select>
+               {/* Project Status Filter */}
+               <select
+                 value={filterProjectStatus}
+                 onChange={(e) => setFilterProjectStatus(e.target.value)}
+                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
+               >
+                 <option value="">{t('allStatuses')}</option>
+                 {Object.values(ProjectStatus).map(status => (
+                   <option key={status} value={status}>{status}</option>
                  ))}
                </select>
                <button 
@@ -546,7 +648,7 @@ function AppContent() {
                       <div>{p.project_name}</div>
                       {p.project_name_en && <div className="text-xs text-gray-500 font-light">{p.project_name_en}</div>}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{p.campus_id}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{p.owner_organization || p.campus_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.head_researcher}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -612,9 +714,9 @@ function AppContent() {
 
       return (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
              <h2 className="text-2xl font-bold text-gray-800">{t('publications')}</h2>
-             <div className="flex space-x-3">
+             <div className="flex flex-wrap gap-2 md:gap-3">
                {/* Fiscal Year Filter */}
                <select
                  value={filterFiscalYear}
@@ -634,7 +736,17 @@ function AppContent() {
                  {t('importCsv') || 'Import CSV'}
                </button>
                <button 
-                 onClick={() => exportToCSV(filteredPublications, 'publication', `publications_export_${new Date().toISOString().split('T')[0]}.csv`)}
+                 onClick={() => {
+                   const exportData = filteredPublications.map(pub => {
+                     const proj = projects.find(p => p.project_id === pub.ref_project_id);
+                     return {
+                       ...pub,
+                       campus_id: proj?.campus_id || '',
+                       project_name: proj?.project_name || ''
+                     };
+                   });
+                   exportToCSV(exportData, 'publication', `publications_export_${new Date().toISOString().split('T')[0]}.csv`);
+                 }}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
                >
                  <span className="material-icons mr-2 text-gray-500">download</span>
@@ -730,9 +842,10 @@ function AppContent() {
 
       return (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          {showFacultyModal && <FacultyLecturerModal onClose={() => setShowFacultyModal(false)} />}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
              <h2 className="text-2xl font-bold text-gray-800">{t('personnel')}</h2>
-             <div className="flex space-x-3">
+             <div className="flex flex-wrap gap-2 md:gap-3">
                {/* Fiscal Year Filter */}
                <select
                  value={filterFiscalYear}
@@ -744,6 +857,13 @@ function AppContent() {
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
+               <button 
+                 onClick={() => setShowFacultyModal(true)}
+                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
+               >
+                 <span className="material-icons mr-2 text-gray-500">groups</span>
+                 {t('totalLecturers') || 'Total Lecturers'}
+               </button>
                <button 
                  onClick={() => exportToCSV(filteredPersonnel, 'personnel', `personnel_${new Date().toISOString().split('T')[0]}`)}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -774,6 +894,7 @@ function AppContent() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('fiscalYear')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('staffName')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('faculty') || 'Faculty (คณะ)'}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('courseName')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('devType')}</th>
@@ -787,6 +908,7 @@ function AppContent() {
                       <span className="bg-indigo-50 px-2 py-1 rounded border border-indigo-100">{pd.fiscal_year}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pd.staff_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFacultyName(pd.faculty)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pd.organization_name}</td>
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={pd.course_name}>{pd.course_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -853,9 +975,9 @@ function AppContent() {
 
       return (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
              <h2 className="text-2xl font-bold text-gray-800">{t('utilization')}</h2>
-             <div className="flex space-x-3">
+             <div className="flex flex-wrap gap-2 md:gap-3">
                {/* Fiscal Year Filter */}
                <select
                  value={filterFiscalYear}
@@ -868,7 +990,17 @@ function AppContent() {
                  ))}
                </select>
                <button 
-                 onClick={() => exportToCSV(filteredUtilizations, 'utilization', `utilization_${new Date().toISOString().split('T')[0]}`)}
+                 onClick={() => {
+                   const exportData = filteredUtilizations.map(util => {
+                     const proj = projects.find(p => p.project_id === util.ref_project_id);
+                     return {
+                       ...util,
+                       campus_id: proj?.campus_id || '',
+                       project_name: proj?.project_name || ''
+                     };
+                   });
+                   exportToCSV(exportData, 'utilization', `utilization_${new Date().toISOString().split('T')[0]}`);
+                 }}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
                >
                  <span className="material-icons mr-2 text-gray-500">download</span>
@@ -1009,9 +1141,9 @@ function AppContent() {
 
        return (
          <div className="space-y-8 animate-fade-in-up">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <h2 className="text-2xl font-bold text-gray-800">{t('ip_mou')}</h2>
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-2 md:gap-3">
                  {/* Fiscal Year Filter */}
                  <select
                    value={filterFiscalYear}
@@ -1023,7 +1155,7 @@ function AppContent() {
                      <option key={year} value={year}>{year}</option>
                    ))}
                  </select>
-                 <div className="flex space-x-2 border-r border-gray-300 pr-3 mr-1">
+                 <div className="flex flex-wrap gap-2 border-r border-gray-300 pr-3 mr-1">
                     <button 
                       onClick={() => exportToCSV(filteredMOUs, 'mou', `mou_${new Date().toISOString().split('T')[0]}`)}
                       className="bg-white border border-gray-200 hover:bg-gray-50 text-purple-700 px-3 py-2 rounded-lg flex items-center shadow-sm transition-colors text-sm"
@@ -1176,7 +1308,6 @@ function AppContent() {
   return (
     <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSelectedProject(null); setShowAssetFormType(null); setShowUserForm(false); }}>
       {renderContent()}
-      <Chatbot projects={projects} publications={publications} />
       {csvImportType && (
         <CSVImportModal 
           type={csvImportType} 

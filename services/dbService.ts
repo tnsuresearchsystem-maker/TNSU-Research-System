@@ -2,7 +2,7 @@
 import { db, auth } from "../firebaseConfig";
 import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, setDoc, doc } from "firebase/firestore";
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword, updateEmail } from "firebase/auth";
-import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog } from "../types";
+import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog, FacultyLecturerCount } from "../types";
 import { initialUsers } from "./mockData";
 
 // Collection Names
@@ -14,6 +14,7 @@ const MOUS_COL = "mous";
 const IPS_COL = "ips";
 const USERS_COL = "users";
 const LOGS_COL = "system_logs";
+const FACULTY_STATS_COL = "faculty_stats";
 
 export enum OperationType {
   CREATE = 'create',
@@ -180,9 +181,13 @@ export const getSystemLogs = async (
 
 // --- Projects Operations ---
 
-export const getProjectsFromDB = async (): Promise<ProjectMaster[]> => {
+export const getProjectsFromDB = async (user?: User | null): Promise<ProjectMaster[]> => {
   try {
-    const q = query(collection(db, PROJECTS_COL));
+    let q = query(collection(db, PROJECTS_COL));
+    if (user && user.role !== 'Admin') {
+      // Filter by user's organization nameEn, nameTh, or id
+      q = query(collection(db, PROJECTS_COL), where("campus_id", "in", [user.organization.nameEn, user.organization.nameTh, user.organization.id]));
+    }
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       ...doc.data() as ProjectMaster
@@ -235,13 +240,20 @@ export const deleteProjectFromDB = async (projectId: string): Promise<void> => {
 
 // --- Publications Operations ---
 
-export const getPublicationsFromDB = async (): Promise<PublicationOutput[]> => {
+export const getPublicationsFromDB = async (user?: User | null, userProjects?: ProjectMaster[]): Promise<PublicationOutput[]> => {
   try {
     const q = query(collection(db, PUBLICATIONS_COL));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const allPubs = querySnapshot.docs.map(doc => ({
       ...doc.data() as PublicationOutput
     }));
+    
+    if (user && user.role !== 'Admin' && userProjects) {
+      const projectIds = new Set(userProjects.map(p => p.project_id));
+      return allPubs.filter(pub => projectIds.has(pub.ref_project_id));
+    }
+    
+    return allPubs;
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, PUBLICATIONS_COL);
     return [];
@@ -276,13 +288,20 @@ export const updatePublicationInDB = async (pub: PublicationOutput): Promise<voi
 
 // --- Utilizations Operations ---
 
-export const getUtilizationsFromDB = async (): Promise<Utilization[]> => {
+export const getUtilizationsFromDB = async (user?: User | null, userProjects?: ProjectMaster[]): Promise<Utilization[]> => {
   try {
     const q = query(collection(db, UTILIZATIONS_COL));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const allUtils = querySnapshot.docs.map(doc => ({
       ...doc.data() as Utilization
     }));
+    
+    if (user && user.role !== 'Admin' && userProjects) {
+      const projectIds = new Set(userProjects.map(p => p.project_id));
+      return allUtils.filter(util => projectIds.has(util.ref_project_id));
+    }
+    
+    return allUtils;
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, UTILIZATIONS_COL);
     return [];
@@ -317,9 +336,12 @@ export const updateUtilizationInDB = async (util: Utilization): Promise<void> =>
 
 // --- Personnel Operations ---
 
-export const getPersonnelFromDB = async (): Promise<PersonnelDevelopment[]> => {
+export const getPersonnelFromDB = async (user?: User | null): Promise<PersonnelDevelopment[]> => {
   try {
-    const q = query(collection(db, PERSONNEL_COL));
+    let q = query(collection(db, PERSONNEL_COL));
+    if (user && user.role !== 'Admin') {
+      q = query(collection(db, PERSONNEL_COL), where("organization_name", "in", [user.organization.nameEn, user.organization.nameTh, user.organization.id]));
+    }
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       ...doc.data() as PersonnelDevelopment
@@ -358,9 +380,12 @@ export const updatePersonnelInDB = async (personnel: PersonnelDevelopment): Prom
 
 // --- MOU Operations ---
 
-export const getMOUsFromDB = async (): Promise<MOU[]> => {
+export const getMOUsFromDB = async (user?: User | null): Promise<MOU[]> => {
   try {
-    const q = query(collection(db, MOUS_COL));
+    let q = query(collection(db, MOUS_COL));
+    if (user && user.role !== 'Admin') {
+      q = query(collection(db, MOUS_COL), where("campus_id", "in", [user.organization.nameEn, user.organization.nameTh, user.organization.id]));
+    }
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ ...doc.data() as MOU }));
   } catch (error) {
@@ -380,9 +405,12 @@ export const addMOUToDB = async (mou: MOU): Promise<void> => {
 
 // --- IP Operations ---
 
-export const getIPsFromDB = async (): Promise<IntellectualProperty[]> => {
+export const getIPsFromDB = async (user?: User | null): Promise<IntellectualProperty[]> => {
   try {
-    const q = query(collection(db, IPS_COL));
+    let q = query(collection(db, IPS_COL));
+    if (user && user.role !== 'Admin') {
+      q = query(collection(db, IPS_COL), where("campus_id", "in", [user.organization.nameEn, user.organization.nameTh, user.organization.id]));
+    }
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ ...doc.data() as IntellectualProperty }));
   } catch (error) {
@@ -416,11 +444,19 @@ export const getUsersFromDB = async (): Promise<User[]> => {
 // New Helper for efficient single user lookup
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   try {
-    const q = query(collection(db, USERS_COL), where("email", "==", email), limit(1));
-    const snapshot = await getDocs(q);
+    let q = query(collection(db, USERS_COL), where("email", "==", email), limit(1));
+    let snapshot = await getDocs(q);
     if (!snapshot.empty) {
       return snapshot.docs[0].data() as User;
     }
+    
+    // Check authEmail if email not found
+    q = query(collection(db, USERS_COL), where("authEmail", "==", email), limit(1));
+    snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return snapshot.docs[0].data() as User;
+    }
+    
     return null;
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, USERS_COL);
@@ -524,35 +560,47 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
   let email = identifier;
   const isEmail = identifier.includes("@");
 
-  // 1. Resolve Username to Email (if needed)
-  if (!isEmail) {
-    try {
-        // Try Firestore lookup
-        const q = query(collection(db, USERS_COL), where("username", "==", identifier), limit(1));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          email = snapshot.docs[0].data().email;
-        } else {
-          // If query succeeds but no user found, throw error to trigger fallback
-          throw new Error("User not found in DB");
-        }
-    } catch (err: any) {
-        // Handle "Missing or insufficient permissions" or User not found
-        // console.warn("DB Username lookup failed (permission or missing). Switching to Mock Data Fallback.");
-        
-        // Fallback: Check Mock Data
-        // This is crucial for initial login if rules block unauthenticated reads
-        const mockUser = initialUsers.find(u => u.username === identifier);
-        if (mockUser) {
-            // console.log("Resolved username via Mock Data");
-            email = mockUser.email;
-        } else {
-            // If we can't resolve the username, and it's not an email, we fail.
-            // The user must use Email to login if not in mock data and DB is locked.
-            // We can't proceed without an email
-            throw new Error("Could not resolve username. Please login with your email address.");
-        }
-    }
+  // 1. Resolve Identifier (Username or Email) to Auth Email
+  try {
+      // Try Firestore lookup by username first
+      let q = query(collection(db, USERS_COL), where("username", "==", identifier), limit(1));
+      let snapshot = await getDocs(q);
+      
+      if (snapshot.empty && isEmail) {
+          // If not found by username, try by email
+          q = query(collection(db, USERS_COL), where("email", "==", identifier), limit(1));
+          snapshot = await getDocs(q);
+          
+          if (snapshot.empty) {
+              // Try by authEmail
+              q = query(collection(db, USERS_COL), where("authEmail", "==", identifier), limit(1));
+              snapshot = await getDocs(q);
+          }
+      }
+      
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        email = userData.authEmail || userData.email;
+      } else if (!isEmail) {
+        // If query succeeds but no user found, throw error to trigger fallback
+        throw new Error("User not found in DB");
+      }
+  } catch (err: any) {
+      // Handle "Missing or insufficient permissions" or User not found
+      // console.warn("DB lookup failed (permission or missing). Switching to Mock Data Fallback.");
+      
+      // Fallback: Check Mock Data
+      // This is crucial for initial login if rules block unauthenticated reads
+      const mockUser = initialUsers.find(u => u.username === identifier || u.email === identifier || u.authEmail === identifier);
+      if (mockUser) {
+          // console.log("Resolved identifier via Mock Data");
+          email = mockUser.authEmail || mockUser.email;
+      } else if (!isEmail) {
+          // If we can't resolve the username, and it's not an email, we fail.
+          // The user must use Email to login if not in mock data and DB is locked.
+          // We can't proceed without an email
+          throw new Error("Could not resolve username. Please login with your email address.");
+      }
   }
 
   try {
@@ -567,7 +615,7 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
     // we fallback to Mock Data so the hardcoded Admin can still enter.
     if (!userProfile) {
          // console.warn("Auth successful, but Firestore profile not found (or locked). Checking Mock Data for fallback profile...");
-         const mockUser = initialUsers.find(u => u.email === email);
+         const mockUser = initialUsers.find(u => u.email === email || u.authEmail === email);
          if (mockUser) {
              // console.log("Found profile in Mock Data. Using Mock Profile.");
              userProfile = mockUser;
@@ -624,7 +672,7 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
                         console.warn(`Email ${email} failed (${createErr.code}). Generating unique fallback email for migration...`);
                         const fallbackEmail = `${userProfile.username}_${Date.now()}@demo.local`;
                         newCred = await createUserWithEmailAndPassword(auth, fallbackEmail, pass);
-                        userProfile.email = fallbackEmail; // Update profile email to match Auth
+                        userProfile.authEmail = fallbackEmail; // Update profile authEmail to match Auth
                     } else {
                         throw createErr;
                     }
@@ -680,6 +728,11 @@ export const authenticateUserLegacy = async (identifier: string, password: strin
         if (snapshot.empty) {
            q = query(collection(db, USERS_COL), where("email", "==", identifier), limit(1));
            snapshot = await getDocs(q);
+           
+           if (snapshot.empty) {
+               q = query(collection(db, USERS_COL), where("authEmail", "==", identifier), limit(1));
+               snapshot = await getDocs(q);
+           }
         }
         
         if (!snapshot.empty) {
@@ -694,7 +747,7 @@ export const authenticateUserLegacy = async (identifier: string, password: strin
     }
 
     // 2. Fallback to Mock Data (Safe fallback for Admin/Staff seed)
-    const mockUser = initialUsers.find(u => (u.username === identifier || u.email === identifier) && u.password === password);
+    const mockUser = initialUsers.find(u => (u.username === identifier || u.email === identifier || u.authEmail === identifier) && u.password === password);
     if (mockUser) {
         return mockUser;
     }
@@ -711,7 +764,14 @@ export const authenticateUserLegacy = async (identifier: string, password: strin
 // 1. Reset Password (Admin triggered or forgot password)
 export const sendUserPasswordResetEmail = async (email: string): Promise<{ success: boolean; message?: string }> => {
   try {
-    await sendPasswordResetEmail(auth, email);
+    let targetEmail = email;
+    // Try to find the user to get their actual auth email
+    const user = await getUserByEmail(email);
+    if (user && user.authEmail) {
+        targetEmail = user.authEmail;
+    }
+    
+    await sendPasswordResetEmail(auth, targetEmail);
     return { success: true };
   } catch (error: any) {
     console.error("Error sending reset email:", error);
@@ -723,7 +783,7 @@ export const sendUserPasswordResetEmail = async (email: string): Promise<{ succe
 };
 
 // 2. Change Password (Logged in User)
-export const changeMyPassword = async (user: User, oldPass: string, newPass: string, newEmail?: string): Promise<{ success: boolean; message?: string }> => {
+export const changeMyPassword = async (user: User, oldPass: string, newPass: string, newEmail?: string): Promise<{ success: boolean; message?: string; authEmail?: string }> => {
   const currentUser = auth.currentUser;
   
   // A: Firebase Auth User
@@ -737,15 +797,38 @@ export const changeMyPassword = async (user: User, oldPass: string, newPass: str
       await updatePassword(currentUser, newPass);
       
       // Update Email if provided and different
+      let authEmailUpdated = false;
+      let emailErrorMessage = "";
       if (newEmail && newEmail !== currentUser.email) {
-          await updateEmail(currentUser, newEmail);
+          try {
+              await updateEmail(currentUser, newEmail);
+              authEmailUpdated = true;
+          } catch (emailError: any) {
+              console.warn("Could not update Firebase Auth email:", emailError);
+              emailErrorMessage = emailError.message;
+              // We will just update the Firestore email and keep authEmail as the old one
+          }
       }
       
-      // Sync with Firestore (Optional, but keeps legacy field updated)
-      await updateUserInDB({ ...user, password: newPass, email: newEmail || user.email, mustChangePassword: false }, user);
+      // Sync with Firestore
+      const updatedData: Partial<User> = { password: newPass, email: newEmail || user.email, mustChangePassword: false };
+      let finalAuthEmail = user.authEmail;
+      if (newEmail && newEmail !== currentUser.email && !authEmailUpdated) {
+          updatedData.authEmail = currentUser.email; // Keep track of the actual auth email
+          finalAuthEmail = currentUser.email;
+      } else if (authEmailUpdated) {
+          updatedData.authEmail = newEmail;
+          finalAuthEmail = newEmail;
+      }
+      
+      await updateUserInDB({ ...user, ...updatedData } as User, user);
       await logUserActivity(user, 'UPDATE', 'User', 'User changed their own password and/or email');
       
-      return { success: true };
+      if (newEmail && newEmail !== currentUser.email && !authEmailUpdated) {
+          return { success: true, message: `Password updated, but email could not be fully changed in Auth: ${emailErrorMessage}. You will still log in with your old email/username.`, authEmail: finalAuthEmail };
+      }
+      
+      return { success: true, authEmail: finalAuthEmail };
     } catch (error: any) {
       console.error("Change password/email error:", error);
       return { success: false, message: error.message || "Failed to update password/email. Check your old password." };
@@ -761,6 +844,41 @@ export const changeMyPassword = async (user: User, oldPass: string, newPass: str
        return { success: true };
     }
     return { success: false, message: "Incorrect current password." };
+  }
+};
+
+// --- Faculty Stats Operations ---
+
+export const getFacultyStatsFromDB = async (user?: User | null): Promise<FacultyLecturerCount[]> => {
+  try {
+    let q = query(collection(db, FACULTY_STATS_COL));
+    if (user && user.role !== 'Admin') {
+      q = query(collection(db, FACULTY_STATS_COL), where("campus_id", "in", [user.organization.nameEn, user.organization.nameTh, user.organization.id]));
+    }
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data() as FacultyLecturerCount
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, FACULTY_STATS_COL);
+    return [];
+  }
+};
+
+export const saveFacultyStatsToDB = async (stats: FacultyLecturerCount): Promise<void> => {
+  try {
+    const q = query(collection(db, FACULTY_STATS_COL), where("id", "==", stats.id), limit(1));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await updateDoc(docRef, { ...stats });
+    } else {
+      await addDoc(collection(db, FACULTY_STATS_COL), stats);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, FACULTY_STATS_COL);
+    throw error;
   }
 };
 
