@@ -208,11 +208,12 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ onSave, onCancel, initial
         <div className="col-span-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('activityDate')}</label>
           <input 
-            type="date" 
+            type="text" 
             name="activity_date" 
             value={formData.activity_date || ''} 
             onChange={handleChange}
             className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5"
+            placeholder="e.g. 23-25 มี.ค. 2568"
             required
           />
         </div>

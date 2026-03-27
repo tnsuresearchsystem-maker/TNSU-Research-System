@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ProjectMaster, PublicationOutput, FiscalYear, PersonnelDevelopment, MOU, IntellectualProperty, OrganizationType } from '../types';
+import { ProjectMaster, PublicationOutput, FiscalYear, PersonnelDevelopment, MOU, IntellectualProperty, OrganizationType, FacultyLecturerCount } from '../types';
+import { FISCAL_YEARS } from '../constants';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area
@@ -17,17 +18,19 @@ interface DashboardProps {
   personnel: PersonnelDevelopment[];
   mous: MOU[];
   ips: IntellectualProperty[];
+  facultyStats?: FacultyLecturerCount[];
   onSeedData?: () => void;
   isSeeding?: boolean;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'];
 
-const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel, mous, ips, onSeedData, isSeeding }) => {
+const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel, mous, ips, facultyStats = [], onSeedData, isSeeding }) => {
   const { t, language } = useLanguage();
   const [filterRegion, setFilterRegion] = useState<string>('ALL');
   const [filterOrgType, setFilterOrgType] = useState<string>('ALL');
   const [filterOrgId, setFilterOrgId] = useState<string>('ALL');
+  const [filterYear, setFilterYear] = useState<string>(FiscalYear.Y2568);
 
   // --- FILTERING LOGIC ---
   const filteredData = useMemo(() => {
@@ -102,6 +105,19 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
     };
   }, [projects, publications, personnel, mous, ips, filterRegion, filterOrgType, filterOrgId]);
 
+  // Data filtered by year for KPI cards
+  const yearFilteredData = useMemo(() => {
+    if (filterYear === 'ALL') return filteredData;
+
+    return {
+      projects: filteredData.projects.filter(p => p.funding_fiscal_year === filterYear),
+      publications: filteredData.publications.filter(pub => pub.output_reporting_year === filterYear),
+      personnel: filteredData.personnel.filter(p => p.fiscal_year === filterYear),
+      mous: filteredData.mous.filter(m => m.fiscal_year === filterYear),
+      ips: filteredData.ips.filter(i => i.fiscal_year === filterYear)
+    };
+  }, [filteredData, filterYear]);
+
   // --- AGGREGATION FOR CHARTS ---
 
   // 1. Projects by Fiscal Year
@@ -127,23 +143,23 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
 
   // 3. Publications by Type
   const publicationsByType = useMemo(() => {
-    const map = filteredData.publications.reduce((acc, p) => {
+    const map = yearFilteredData.publications.reduce((acc, p) => {
       const type = p.publication_type || 'Other';
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     return Object.keys(map).map(type => ({ name: type, value: map[type] }));
-  }, [filteredData.publications]);
+  }, [yearFilteredData.publications]);
 
   // 4. Project Status Distribution
   const statusData = useMemo(() => {
-    const map = filteredData.projects.reduce((acc, p) => {
+    const map = yearFilteredData.projects.reduce((acc, p) => {
       const status = p.status || 'Unknown';
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     return Object.keys(map).map(key => ({ name: key, value: map[key] }));
-  }, [filteredData.projects]);
+  }, [yearFilteredData.projects]);
 
   // 5. Breakdown by Campus (Top 5 or All)
   const campusBreakdownData = useMemo(() => {
@@ -164,39 +180,72 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
     });
 
     // Count Projects
-    filteredData.projects.forEach(p => {
+    yearFilteredData.projects.forEach(p => {
       if (stats[p.campus_id]) stats[p.campus_id].projects++;
     });
 
     // Count Pubs
-    filteredData.publications.forEach(pub => {
+    yearFilteredData.publications.forEach(pub => {
       const proj = projects.find(p => p.project_id === pub.ref_project_id);
       if (proj && stats[proj.campus_id]) stats[proj.campus_id].pubs++;
     });
 
     // Count Personnel
-    filteredData.personnel.forEach(p => {
+    yearFilteredData.personnel.forEach(p => {
        const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.organization_name || o.nameTh === p.organization_name);
        if (org && stats[org.id]) stats[org.id].personnel++;
     });
 
     // Count MOUs
-    filteredData.mous.forEach(m => {
+    yearFilteredData.mous.forEach(m => {
       if (m.campus_id && stats[m.campus_id]) stats[m.campus_id].mous++;
     });
 
     // Count IPs
-    filteredData.ips.forEach(i => {
+    yearFilteredData.ips.forEach(i => {
       if (i.campus_id && stats[i.campus_id]) stats[i.campus_id].ips++;
     });
 
     return Object.values(stats).filter(s => s.projects > 0 || s.pubs > 0 || s.personnel > 0 || s.mous > 0 || s.ips > 0);
-  }, [filteredData, projects, language, filterOrgType, filterOrgId]);
+  }, [yearFilteredData, projects, language, filterOrgType, filterOrgId, filterRegion]);
+
+  // Calculate Total Regular Lecturers and Percentage
+  const personnelStats = useMemo(() => {
+    // Total trained lecturers (unique by staff_name)
+    const uniqueTrained = new Set(yearFilteredData.personnel.map(p => p.staff_name)).size;
+    
+    // Total regular lecturers from facultyStats
+    // Filter facultyStats by region/org/year if needed, similar to how we filter other data
+    let filteredStats = facultyStats;
+    if (filterYear !== 'ALL') {
+      filteredStats = filteredStats.filter(s => s.fiscal_year === filterYear);
+    }
+    if (filterRegion !== 'ALL') {
+      const validOrgNames = ALL_ORGANIZATIONS.filter(org => org.region === filterRegion).map(org => org.nameEn);
+      filteredStats = filteredStats.filter(s => validOrgNames.includes(s.campus_id));
+    }
+    if (filterOrgType !== 'ALL') {
+      const validOrgNames = ALL_ORGANIZATIONS.filter(org => org.type === filterOrgType).map(org => org.nameEn);
+      filteredStats = filteredStats.filter(s => validOrgNames.includes(s.campus_id));
+    }
+    if (filterOrgId !== 'ALL') {
+      filteredStats = filteredStats.filter(s => s.campus_id === filterOrgId);
+    }
+
+    const totalRegular = filteredStats.reduce((sum, s) => sum + (s.total_lecturers || 0), 0);
+    const percentage = totalRegular > 0 ? ((uniqueTrained / totalRegular) * 100).toFixed(2) : '0.00';
+
+    return {
+      uniqueTrained,
+      totalRegular,
+      percentage
+    };
+  }, [yearFilteredData.personnel, facultyStats, filterRegion, filterOrgType, filterOrgId, filterYear]);
 
   // Total Budget Calculation
   const totalBudget = useMemo(() => {
-    return filteredData.projects.reduce((sum, p) => sum + (Number(p.budget_amount) || 0), 0);
-  }, [filteredData.projects]);
+    return yearFilteredData.projects.reduce((sum, p) => sum + (Number(p.budget_amount) || 0), 0);
+  }, [yearFilteredData.projects]);
 
 
   // --- EMPTY STATE ---
@@ -291,6 +340,20 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
 
           <div className="h-6 w-px bg-gray-200"></div>
 
+          {/* Fiscal Year Filter */}
+          <select 
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            className="bg-transparent border-none text-gray-700 px-2 py-1 focus:ring-0 text-sm font-medium cursor-pointer hover:text-tnsu-green-600 transition-colors"
+          >
+            <option value="ALL">{t('allYears') || 'All Years'}</option>
+            {FISCAL_YEARS.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+
+          <div className="h-6 w-px bg-gray-200"></div>
+
           <button 
             onClick={handlePrint}
             className="text-gray-500 hover:text-gray-800 p-2 rounded-lg transition-colors"
@@ -314,14 +377,14 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard 
           title={t('totalProjects')} 
-          value={filteredData.projects.length} 
+          value={yearFilteredData.projects.length} 
           icon={<FileText className="w-6 h-6 text-blue-600" />} 
           bg="bg-blue-50"
           textColor="text-blue-600"
         />
         <KpiCard 
           title={t('totalPubs')} 
-          value={filteredData.publications.length} 
+          value={yearFilteredData.publications.length} 
           icon={<BookOpen className="w-6 h-6 text-emerald-600" />} 
           bg="bg-emerald-50"
           textColor="text-emerald-600"
@@ -332,14 +395,15 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
           icon={<DollarSign className="w-6 h-6 text-amber-600" />} 
           bg="bg-amber-50"
           textColor="text-amber-600"
-          subtext={`Avg: ฿${filteredData.projects.length > 0 ? (totalBudget / filteredData.projects.length / 1000).toFixed(0) : 0}k / project`}
+          subtext={`Avg: ฿${yearFilteredData.projects.length > 0 ? (totalBudget / yearFilteredData.projects.length / 1000).toFixed(0) : 0}k / project`}
         />
         <KpiCard 
           title={t('personnel')} 
-          value={filteredData.personnel.length} 
+          value={personnelStats.uniqueTrained} 
           icon={<Users className="w-6 h-6 text-indigo-600" />} 
           bg="bg-indigo-50"
           textColor="text-indigo-600"
+          subtext={personnelStats.totalRegular > 0 ? `${personnelStats.percentage}% of ${personnelStats.totalRegular} regular lecturers` : 'No regular lecturers data'}
         />
       </div>
       

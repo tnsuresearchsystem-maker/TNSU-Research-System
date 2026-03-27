@@ -47,16 +47,16 @@ export enum PublicationType {
 }
 
 export enum UtilizationType {
-  Academic = "Academic",
-  Social = "Social",
-  Policy = "Policy",
-  Commercial = "Commercial",
+  Academic = "เชิงวิชาการ",
+  Social = "เชิงสังคม/ชุมชน",
+  Policy = "เชิงนโยบาย",
+  Commercial = "เชิงพาณิชย์",
 }
 
 export enum DevelopmentType {
-  Training = "Training",
-  Seminar = "Seminar",
-  Conference = "Academic Conference"
+  Training = "การอบรม",
+  Seminar = "การสัมมนา",
+  Conference = "การประชุมวิชาการ"
 }
 
 // Module 5 Types

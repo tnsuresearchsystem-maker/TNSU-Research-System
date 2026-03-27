@@ -226,6 +226,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('username')} / {t('fullName')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('role')}</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{language === 'th' ? 'ประเภทหน่วยงาน' : 'Organization Type'}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')} / {t('caretaker')}</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('email')} / {t('phoneNumber')}</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
@@ -257,12 +258,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      <div className="text-gray-900">{language === 'th' ? user.organization.nameTh : user.organization.nameEn}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-gray-900">
                         {user.organization.type === OrganizationType.OfficePresident ? (language === 'th' ? 'ส่วนกลาง' : 'Central') : 
                          user.organization.type === OrganizationType.Campus ? (language === 'th' ? 'วิทยาเขต/คณะ' : 'Campus/Faculty') : 
                          (language === 'th' ? 'โรงเรียนกีฬา' : 'Sports School')}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <div className="text-gray-900">{language === 'th' ? user.organization.nameTh : user.organization.nameEn}</div>
                       {user.caretaker && <div className="text-xs text-gray-500 mt-1"><span className="font-medium">{t('caretaker')}:</span> {user.caretaker}</div>}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
@@ -297,7 +300,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                   </tr>
                 )) : (
                    <tr>
-                     <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                     <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
                        {t('noUsersFound')}
                      </td>
                    </tr>

@@ -189,9 +189,9 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onSave, onC
              {filteredProjects.length === 0 ? (
                <div className="p-6 text-center text-gray-500 text-sm">{t('noProjectsFound')}</div>
              ) : (
-               filteredProjects.map(p => (
+               filteredProjects.map((p, index) => (
                  <div 
-                  key={p.project_id}
+                  key={`${p.project_id}_${index}`}
                   onClick={() => setFormData({...formData, ref_project_id: p.project_id})}
                   className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors flex justify-between items-center ${formData.ref_project_id === p.project_id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''}`}
                  >

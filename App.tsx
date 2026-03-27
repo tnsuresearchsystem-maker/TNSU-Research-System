@@ -13,11 +13,11 @@ import ProjectDetails from './components/ProjectDetails';
 import Login from './components/Login';
 import CSVImportModal from './components/CSVImportModal';
 import FacultyLecturerModal from './components/FacultyLecturerModal';
-import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, ReportingPeriod, ResearchCategory, ProjectStatus } from './types';
+import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, ReportingPeriod, ResearchCategory, ProjectStatus, FacultyLecturerCount, OrganizationType } from './types';
 import { FISCAL_YEARS, ALL_ORGANIZATIONS, REGIONS, FACULTIES } from './constants';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
+import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, getFacultyStatsFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
 import { CSVType, exportToCSV } from './services/csvService';
 import { ChangePasswordForm } from './components/ChangePasswordForm';
@@ -25,6 +25,7 @@ import { ChangePasswordForm } from './components/ChangePasswordForm';
 function AppContent() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'Admin';
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [projects, setProjects] = useState<ProjectMaster[]>([]);
@@ -34,6 +35,7 @@ function AppContent() {
   const [mous, setMOUs] = useState<MOU[]>([]);
   const [ips, setIPs] = useState<IntellectualProperty[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [facultyStats, setFacultyStats] = useState<FacultyLecturerCount[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -61,6 +63,7 @@ function AppContent() {
   const [utilSearchQuery, setUtilSearchQuery] = useState('');
   const [filterFiscalYear, setFilterFiscalYear] = useState<string>('');
   const [filterCampus, setFilterCampus] = useState<string>('');
+  const [filterOrgType, setFilterOrgType] = useState<string>('');
   const [filterReportingPeriod, setFilterReportingPeriod] = useState<string>('');
   const [filterRegion, setFilterRegion] = useState<string>('');
   const [filterResearchCategory, setFilterResearchCategory] = useState<string>('');
@@ -70,26 +73,36 @@ function AppContent() {
   const fetchData = async () => {
     setIsLoading(true);
     setAppError(null);
+    let firstError: Error | null = null;
+    
     try {
       // Fetch projects first because publications and utilizations depend on them for filtering if not Admin
-      const fetchedProjects = await getProjectsFromDB(user);
+      let fetchedProjects: ProjectMaster[] = [];
+      try {
+        fetchedProjects = await getProjectsFromDB(user);
+        setProjects(fetchedProjects);
+      } catch (e) {
+        console.error("Failed to load projects", e);
+        firstError = e instanceof Error ? e : new Error(String(e));
+        setAppError(firstError);
+      }
       
       // If admin, fetch users too
-      // Note: Passing the array literal directly to Promise.all ensures proper tuple type inference
-      const [fetchedPubs, fetchedUtils, fetchedPersonnel, fetchedMOUs, fetchedIPs] = await Promise.all([
+      const [fetchedPubs, fetchedUtils, fetchedPersonnel, fetchedMOUs, fetchedIPs, fetchedFacultyStats] = await Promise.all([
         getPublicationsFromDB(user, fetchedProjects),
         getUtilizationsFromDB(user, fetchedProjects),
         getPersonnelFromDB(user),
         getMOUsFromDB(user),
-        getIPsFromDB(user)
+        getIPsFromDB(user),
+        getFacultyStatsFromDB(user)
       ]);
       
-      setProjects(fetchedProjects);
       setPublications(fetchedPubs);
       setUtilizations(fetchedUtils);
       setPersonnel(fetchedPersonnel);
       setMOUs(fetchedMOUs);
       setIPs(fetchedIPs);
+      setFacultyStats(fetchedFacultyStats);
 
       // Fetch users separately
       if (user?.role === 'Admin') {
@@ -104,10 +117,6 @@ function AppContent() {
       setIsLoading(false);
     }
   };
-
-  if (appError) {
-    throw appError;
-  }
 
   // Fetch Data from Firebase on Load
   useEffect(() => {
@@ -378,18 +387,35 @@ function AppContent() {
         } as PublicationOutput));
         await Promise.all(mappedData.map(item => addPublicationToDB(item)));
       } else if (csvImportType === 'utilization') {
-        const mappedData = data.map(item => ({ 
-          ...item, 
-          campus_id: mapCampusId(item.campus_id),
-          approval_status: mapApprovalStatus(item.approval_status)
-        } as Utilization));
+        const mappedData = data.map(item => {
+          let ut = item.utilization_type;
+          if (ut === 'Academic') ut = 'เชิงวิชาการ';
+          else if (ut === 'Social') ut = 'เชิงสังคม/ชุมชน';
+          else if (ut === 'Policy') ut = 'เชิงนโยบาย';
+          else if (ut === 'Commercial') ut = 'เชิงพาณิชย์';
+          
+          return { 
+            ...item, 
+            utilization_type: ut,
+            campus_id: mapCampusId(item.campus_id),
+            approval_status: mapApprovalStatus(item.approval_status)
+          } as Utilization;
+        });
         await Promise.all(mappedData.map(item => addUtilizationToDB(item)));
       } else if (csvImportType === 'personnel') {
-        const mappedData = data.map(item => ({ 
-          ...item, 
-          organization_name: mapCampusId(item.organization_name),
-          approval_status: mapApprovalStatus(item.approval_status)
-        } as PersonnelDevelopment));
+        const mappedData = data.map(item => {
+          let dt = item.development_type;
+          if (dt === 'Training') dt = 'การอบรม';
+          else if (dt === 'Seminar') dt = 'การสัมมนา';
+          else if (dt === 'Conference' || dt === 'Academic Conference') dt = 'การประชุมวิชาการ';
+
+          return { 
+            ...item, 
+            development_type: dt,
+            organization_name: mapCampusId(item.organization_name),
+            approval_status: mapApprovalStatus(item.approval_status)
+          } as PersonnelDevelopment;
+        });
         await Promise.all(mappedData.map(item => addPersonnelToDB(item)));
       } else if (csvImportType === 'mou') {
         const mappedData = data.map(item => ({ 
@@ -454,6 +480,7 @@ function AppContent() {
           personnel={personnel}
           mous={mous}
           ips={ips}
+          facultyStats={facultyStats}
           onSeedData={handleSeedData}
           isSeeding={isSeeding}
         />
@@ -498,6 +525,10 @@ function AppContent() {
           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.campus_id);
           if (!org || org.region !== filterRegion) return false;
         }
+        if (filterOrgType) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.campus_id);
+          if (!org || org.type !== filterOrgType) return false;
+        }
 
         // If not admin, only show projects from their own campus
         if (user?.role !== 'Admin' && p.campus_id !== user?.organization.nameEn) return false;
@@ -530,6 +561,19 @@ function AppContent() {
                    ))}
                  </select>
                )}
+               {/* Org Type Filter (Admin only) */}
+               {user?.role === 'Admin' && (
+                 <select
+                   value={filterOrgType}
+                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allTypes') || 'All Types'}</option>
+                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
+                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
+                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
+                 </select>
+               )}
                {/* Campus Filter (Admin only) */}
                {user?.role === 'Admin' && (
                  <select
@@ -540,6 +584,7 @@ function AppContent() {
                    <option value="">{t('allOrgs')}</option>
                    {ALL_ORGANIZATIONS
                      .filter(org => !filterRegion || org.region === filterRegion)
+                     .filter(org => !filterOrgType || org.type === filterOrgType)
                      .map(org => (
                      <option key={org.id} value={org.nameEn}>
                        {language === 'th' ? org.nameTh : org.nameEn}
@@ -629,9 +674,9 @@ function AppContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProjects.map(p => (
+                {filteredProjects.map((p, index) => (
                   <tr 
-                    key={p.project_id} 
+                    key={`${p.project_id}_${index}`} 
                     onClick={() => setSelectedProject(p)}
                     className="hover:bg-blue-50 transition-colors cursor-pointer group"
                   >
@@ -709,6 +754,16 @@ function AppContent() {
       // Filter logic
       const filteredPublications = publications.filter(pub => {
         if (filterFiscalYear && pub.output_reporting_year !== filterFiscalYear) return false;
+        const proj = projects.find(p => p.project_id === pub.ref_project_id);
+        if (filterCampus && proj?.campus_id !== filterCampus) return false;
+        if (filterRegion) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === proj?.campus_id);
+          if (!org || org.region !== filterRegion) return false;
+        }
+        if (filterOrgType) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === proj?.campus_id);
+          if (!org || org.type !== filterOrgType) return false;
+        }
         return true;
       });
 
@@ -728,6 +783,54 @@ function AppContent() {
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
+               {isAdmin && (
+                 <select
+                   value={filterRegion}
+                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allRegions')}</option>
+                   {REGIONS.map(region => (
+                     <option key={region} value={region}>
+                       {language === 'th' ? 
+                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
+                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
+                          region === 'Central Region' ? 'ภาคกลาง' : 
+                          region === 'Southern Region' ? 'ภาคใต้' : region)
+                         : region}
+                     </option>
+                   ))}
+                 </select>
+               )}
+               {isAdmin && (
+                 <select
+                   value={filterOrgType}
+                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allTypes') || 'All Types'}</option>
+                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
+                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
+                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
+                 </select>
+               )}
+               {isAdmin && (
+                 <select
+                   value={filterCampus}
+                   onChange={(e) => setFilterCampus(e.target.value)}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allOrgs')}</option>
+                   {ALL_ORGANIZATIONS
+                     .filter(org => !filterRegion || org.region === filterRegion)
+                     .filter(org => !filterOrgType || org.type === filterOrgType)
+                     .map(org => (
+                     <option key={org.id} value={org.nameEn}>
+                       {language === 'th' ? org.nameTh : org.nameEn}
+                     </option>
+                   ))}
+                 </select>
+               )}
                <button 
                  onClick={() => setCsvImportType('publication')}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -774,10 +877,10 @@ function AppContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPublications.map(pub => {
+                {filteredPublications.map((pub, index) => {
                   const project = projects.find(p => p.project_id === pub.ref_project_id);
                   return (
-                    <tr key={pub.output_id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={`${pub.output_id}_${index}`} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700">
                         <span className="bg-green-50 px-2 py-1 rounded border border-green-100">{pub.output_reporting_year}</span>
                       </td>
@@ -837,6 +940,15 @@ function AppContent() {
       // Filter logic
       const filteredPersonnel = personnel.filter(pd => {
         if (filterFiscalYear && pd.fiscal_year !== filterFiscalYear) return false;
+        if (filterCampus && pd.organization_name !== filterCampus) return false;
+        if (filterRegion) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === pd.organization_name);
+          if (!org || org.region !== filterRegion) return false;
+        }
+        if (filterOrgType) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === pd.organization_name);
+          if (!org || org.type !== filterOrgType) return false;
+        }
         return true;
       });
 
@@ -857,6 +969,54 @@ function AppContent() {
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
+               {isAdmin && (
+                 <select
+                   value={filterRegion}
+                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allRegions')}</option>
+                   {REGIONS.map(region => (
+                     <option key={region} value={region}>
+                       {language === 'th' ? 
+                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
+                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
+                          region === 'Central Region' ? 'ภาคกลาง' : 
+                          region === 'Southern Region' ? 'ภาคใต้' : region)
+                         : region}
+                     </option>
+                   ))}
+                 </select>
+               )}
+               {isAdmin && (
+                 <select
+                   value={filterOrgType}
+                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allTypes') || 'All Types'}</option>
+                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
+                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
+                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
+                 </select>
+               )}
+               {isAdmin && (
+                 <select
+                   value={filterCampus}
+                   onChange={(e) => setFilterCampus(e.target.value)}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allOrgs')}</option>
+                   {ALL_ORGANIZATIONS
+                     .filter(org => !filterRegion || org.region === filterRegion)
+                     .filter(org => !filterOrgType || org.type === filterOrgType)
+                     .map(org => (
+                     <option key={org.id} value={org.nameEn}>
+                       {language === 'th' ? org.nameTh : org.nameEn}
+                     </option>
+                   ))}
+                 </select>
+               )}
                <button 
                  onClick={() => setShowFacultyModal(true)}
                  className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
@@ -902,8 +1062,8 @@ function AppContent() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPersonnel.map(pd => (
-                  <tr key={pd.id} className="hover:bg-gray-50 transition-colors">
+                {filteredPersonnel.map((pd, index) => (
+                  <tr key={`${pd.id}_${index}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-700">
                       <span className="bg-indigo-50 px-2 py-1 rounded border border-indigo-100">{pd.fiscal_year}</span>
                     </td>
@@ -970,7 +1130,20 @@ function AppContent() {
           (project && project.project_name.toLowerCase().includes(term))
         );
         const matchesYear = filterFiscalYear ? ut.utilization_reporting_year === filterFiscalYear : true;
-        return matchesSearch && matchesYear;
+        const matchesCampus = filterCampus ? project?.campus_id === filterCampus : true;
+        
+        let matchesRegion = true;
+        if (filterRegion) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === project?.campus_id);
+          matchesRegion = org?.region === filterRegion;
+        }
+        let matchesOrgType = true;
+        if (filterOrgType) {
+          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === project?.campus_id);
+          matchesOrgType = org?.type === filterOrgType;
+        }
+        
+        return matchesSearch && matchesYear && matchesCampus && matchesRegion && matchesOrgType;
       });
 
       return (
@@ -989,6 +1162,54 @@ function AppContent() {
                    <option key={year} value={year}>{year}</option>
                  ))}
                </select>
+               {isAdmin && (
+                 <select
+                   value={filterRegion}
+                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allRegions')}</option>
+                   {REGIONS.map(region => (
+                     <option key={region} value={region}>
+                       {language === 'th' ? 
+                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
+                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
+                          region === 'Central Region' ? 'ภาคกลาง' : 
+                          region === 'Southern Region' ? 'ภาคใต้' : region)
+                         : region}
+                     </option>
+                   ))}
+                 </select>
+               )}
+               {isAdmin && (
+                 <select
+                   value={filterOrgType}
+                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allTypes') || 'All Types'}</option>
+                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
+                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
+                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
+                 </select>
+               )}
+               {isAdmin && (
+                 <select
+                   value={filterCampus}
+                   onChange={(e) => setFilterCampus(e.target.value)}
+                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                 >
+                   <option value="">{t('allOrgs')}</option>
+                   {ALL_ORGANIZATIONS
+                     .filter(org => !filterRegion || org.region === filterRegion)
+                     .filter(org => !filterOrgType || org.type === filterOrgType)
+                     .map(org => (
+                     <option key={org.id} value={org.nameEn}>
+                       {language === 'th' ? org.nameTh : org.nameEn}
+                     </option>
+                   ))}
+                 </select>
+               )}
                <button 
                  onClick={() => {
                    const exportData = filteredUtilizations.map(util => {
@@ -1050,10 +1271,10 @@ function AppContent() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUtilizations.length > 0 ? (
-                  filteredUtilizations.map(ut => {
+                  filteredUtilizations.map((ut, index) => {
                     const project = projects.find(p => p.project_id === ut.ref_project_id);
                     return (
-                      <tr key={ut.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={`${ut.id}_${index}`} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-700">
                           <span className="bg-blue-50 px-2 py-1 rounded border border-blue-100">{ut.utilization_reporting_year}</span>
                         </td>
@@ -1131,11 +1352,29 @@ function AppContent() {
        // Filter logic
        const filteredMOUs = mous.filter(m => {
          if (filterFiscalYear && m.fiscal_year !== filterFiscalYear) return false;
+         if (filterCampus && m.campus_id !== filterCampus) return false;
+         if (filterRegion) {
+           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === m.campus_id);
+           if (!org || org.region !== filterRegion) return false;
+         }
+         if (filterOrgType) {
+           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === m.campus_id);
+           if (!org || org.type !== filterOrgType) return false;
+         }
          return true;
        });
        
        const filteredIPs = ips.filter(i => {
          if (filterFiscalYear && i.fiscal_year !== filterFiscalYear) return false;
+         if (filterCampus && i.campus_id !== filterCampus) return false;
+         if (filterRegion) {
+           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === i.campus_id);
+           if (!org || org.region !== filterRegion) return false;
+         }
+         if (filterOrgType) {
+           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === i.campus_id);
+           if (!org || org.type !== filterOrgType) return false;
+         }
          return true;
        });
 
@@ -1155,6 +1394,54 @@ function AppContent() {
                      <option key={year} value={year}>{year}</option>
                    ))}
                  </select>
+                 {isAdmin && (
+                   <select
+                     value={filterRegion}
+                     onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
+                     className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                   >
+                     <option value="">{t('allRegions')}</option>
+                     {REGIONS.map(region => (
+                       <option key={region} value={region}>
+                         {language === 'th' ? 
+                           (region === 'Northern Region' ? 'ภาคเหนือ' : 
+                            region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
+                            region === 'Central Region' ? 'ภาคกลาง' : 
+                            region === 'Southern Region' ? 'ภาคใต้' : region)
+                           : region}
+                       </option>
+                     ))}
+                   </select>
+                 )}
+                 {isAdmin && (
+                   <select
+                     value={filterOrgType}
+                     onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
+                     className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                   >
+                     <option value="">{t('allTypes') || 'All Types'}</option>
+                     <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
+                     <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
+                     <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
+                   </select>
+                 )}
+                 {isAdmin && (
+                   <select
+                     value={filterCampus}
+                     onChange={(e) => setFilterCampus(e.target.value)}
+                     className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
+                   >
+                     <option value="">{t('allOrgs')}</option>
+                     {ALL_ORGANIZATIONS
+                       .filter(org => !filterRegion || org.region === filterRegion)
+                       .filter(org => !filterOrgType || org.type === filterOrgType)
+                       .map(org => (
+                       <option key={org.id} value={org.nameEn}>
+                         {language === 'th' ? org.nameTh : org.nameEn}
+                       </option>
+                     ))}
+                   </select>
+                 )}
                  <div className="flex flex-wrap gap-2 border-r border-gray-300 pr-3 mr-1">
                     <button 
                       onClick={() => exportToCSV(filteredMOUs, 'mou', `mou_${new Date().toISOString().split('T')[0]}`)}
@@ -1223,8 +1510,8 @@ function AppContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredMOUs.map(m => (
-                      <tr key={m.id} className="hover:bg-purple-50/50">
+                    {filteredMOUs.map((m, index) => (
+                      <tr key={`${m.id}_${index}`} className="hover:bg-purple-50/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-purple-700">{m.fiscal_year}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{m.external_org_name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{m.sign_date}</td>
@@ -1255,8 +1542,8 @@ function AppContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                     {filteredIPs.map(ip => (
-                      <tr key={ip.id} className="hover:bg-pink-50/50">
+                     {filteredIPs.map((ip, index) => (
+                      <tr key={`${ip.id}_${index}`} className="hover:bg-pink-50/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-pink-700">{ip.fiscal_year}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{ip.work_name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1307,6 +1594,68 @@ function AppContent() {
 
   return (
     <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSelectedProject(null); setShowAssetFormType(null); setShowUserForm(false); }}>
+      {appError && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg shadow-sm">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <span className="material-icons text-red-500">error_outline</span>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Database Error
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>
+                  {(() => {
+                    const msg = appError instanceof Error ? appError.message : String(appError);
+                    try {
+                      const parsed = JSON.parse(msg);
+                      if (parsed.error && parsed.path) {
+                        return (
+                          <>
+                            <strong>Operation:</strong> {parsed.operationType} <br />
+                            <strong>Path:</strong> {parsed.path} <br />
+                            <strong>Details:</strong> {parsed.error}
+                          </>
+                        );
+                      }
+                    } catch (e) {
+                      // Not JSON
+                    }
+                    return msg;
+                  })()}
+                </p>
+                <p className="mt-2 font-semibold">
+                  Please update your Firestore Security Rules in the Firebase Console to allow access to this collection.
+                </p>
+                <div className="mt-3">
+                  <button
+                    onClick={() => {
+                      const rules = `rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function isAuthenticated() { return request.auth != null; }\n    match /{document=**} { allow read, write: if isAuthenticated(); }\n  }\n}`;
+                      navigator.clipboard.writeText(rules);
+                      alert('Rules copied to clipboard! Paste them in the Firebase Console -> Firestore Database -> Rules tab.');
+                    }}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    Copy Basic Rules to Clipboard
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <button
+                  onClick={() => setAppError(null)}
+                  className="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <span className="material-icons text-sm">close</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {renderContent()}
       {csvImportType && (
         <CSVImportModal 

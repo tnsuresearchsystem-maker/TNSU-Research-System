@@ -38,6 +38,10 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /faculty_stats/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
     // Users collection
     match /users/{userId} {
       // Anyone can read users (needed for resolving names, legacy login)
