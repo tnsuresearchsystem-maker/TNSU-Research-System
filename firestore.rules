@@ -44,12 +44,12 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Anyone can read users (needed for resolving names, legacy login)
-      allow read: if true;
-      // Users can update their own profile, Admins can do anything
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      // Only authenticated users can read user data
+      allow read: if isAuthenticated();
+      // Allow authenticated users to create their profile (needed for initial login migration)
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
 
     // System Logs collection

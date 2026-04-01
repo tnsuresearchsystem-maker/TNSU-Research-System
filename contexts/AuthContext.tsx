@@ -65,8 +65,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
       return false;
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (error: any) {
+      if (error.message !== "Invalid username or password" && 
+          error.message !== "Too many failed login attempts. Please try again later." &&
+          error.message !== "This account has been disabled. Please contact support.") {
+        console.error("Login error:", error);
+      }
       throw error;
     }
   };

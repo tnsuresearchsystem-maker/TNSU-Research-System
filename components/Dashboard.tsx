@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ALL_ORGANIZATIONS, REGIONS } from '../constants';
 import { 
   LayoutDashboard, FileText, BookOpen, Users, DollarSign, 
@@ -27,6 +28,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel, mous, ips, facultyStats = [], onSeedData, isSeeding }) => {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [filterRegion, setFilterRegion] = useState<string>('ALL');
   const [filterOrgType, setFilterOrgType] = useState<string>('ALL');
   const [filterOrgId, setFilterOrgId] = useState<string>('ALL');
@@ -40,60 +42,72 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
     let filteredMOUs = mous;
     let filteredIPs = ips;
 
+    // Helper function to check if an organization matches the filter
+    const matchesOrg = (campusId: string | undefined, validOrgs: typeof ALL_ORGANIZATIONS) => {
+      if (!campusId) return false;
+      return validOrgs.some(org => org.id === campusId || org.nameEn === campusId || org.nameTh === campusId);
+    };
+
+    // 0. Filter by User Role (Non-admins only see their own org)
+    if (user?.role !== 'Admin') {
+      const userOrg = ALL_ORGANIZATIONS.find(o => o.nameEn === user?.organization.nameEn);
+      if (userOrg) {
+        const validOrgs = [userOrg];
+        filteredProjects = filteredProjects.filter(p => matchesOrg(p.campus_id, validOrgs));
+        filteredPubs = filteredPubs.filter(pub => {
+          const targetCampusId = pub.ref_project_id ? projects.find(p => p.project_id === pub.ref_project_id)?.campus_id : pub.campus_id;
+          return matchesOrg(targetCampusId, validOrgs);
+        });
+        filteredPersonnel = filteredPersonnel.filter(p => matchesOrg(p.organization_name, validOrgs));
+        filteredMOUs = filteredMOUs.filter(m => matchesOrg(m.campus_id, validOrgs));
+        filteredIPs = filteredIPs.filter(i => matchesOrg(i.campus_id, validOrgs));
+      }
+    }
+
     // 1. Filter by Region
     if (filterRegion !== 'ALL') {
-      const validOrgNames = ALL_ORGANIZATIONS.filter(org => org.region === filterRegion).map(org => org.nameEn);
+      const validOrgs = ALL_ORGANIZATIONS.filter(org => org.region === filterRegion);
       
-      filteredProjects = filteredProjects.filter(p => validOrgNames.includes(p.campus_id));
+      filteredProjects = filteredProjects.filter(p => matchesOrg(p.campus_id, validOrgs));
       filteredPubs = filteredPubs.filter(pub => {
-        const proj = projects.find(p => p.project_id === pub.ref_project_id);
-        return proj && validOrgNames.includes(proj.campus_id);
+        const targetCampusId = pub.ref_project_id ? projects.find(p => p.project_id === pub.ref_project_id)?.campus_id : pub.campus_id;
+        return matchesOrg(targetCampusId, validOrgs);
       });
       
-      filteredPersonnel = filteredPersonnel.filter(p => {
-         const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.organization_name || o.nameTh === p.organization_name);
-         return org && validOrgNames.includes(org.nameEn);
-      });
-
-      filteredMOUs = filteredMOUs.filter(m => m.campus_id && validOrgNames.includes(m.campus_id));
-      filteredIPs = filteredIPs.filter(i => i.campus_id && validOrgNames.includes(i.campus_id));
+      filteredPersonnel = filteredPersonnel.filter(p => matchesOrg(p.organization_name, validOrgs));
+      filteredMOUs = filteredMOUs.filter(m => matchesOrg(m.campus_id, validOrgs));
+      filteredIPs = filteredIPs.filter(i => matchesOrg(i.campus_id, validOrgs));
     }
 
     // 2. Filter by Organization Type
     if (filterOrgType !== 'ALL') {
-      const validOrgNames = ALL_ORGANIZATIONS.filter(org => org.type === filterOrgType).map(org => org.nameEn);
+      const validOrgs = ALL_ORGANIZATIONS.filter(org => org.type === filterOrgType);
       
-      filteredProjects = filteredProjects.filter(p => validOrgNames.includes(p.campus_id));
-      // Pubs are linked to projects, so we filter by project's campus
+      filteredProjects = filteredProjects.filter(p => matchesOrg(p.campus_id, validOrgs));
       filteredPubs = filteredPubs.filter(pub => {
-        const proj = projects.find(p => p.project_id === pub.ref_project_id);
-        return proj && validOrgNames.includes(proj.campus_id);
+        const targetCampusId = pub.ref_project_id ? projects.find(p => p.project_id === pub.ref_project_id)?.campus_id : pub.campus_id;
+        return matchesOrg(targetCampusId, validOrgs);
       });
       
-      filteredPersonnel = filteredPersonnel.filter(p => {
-         const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.organization_name || o.nameTh === p.organization_name);
-         return org && org.type === filterOrgType;
-      });
-
-      filteredMOUs = filteredMOUs.filter(m => m.campus_id && validOrgNames.includes(m.campus_id));
-      filteredIPs = filteredIPs.filter(i => i.campus_id && validOrgNames.includes(i.campus_id));
+      filteredPersonnel = filteredPersonnel.filter(p => matchesOrg(p.organization_name, validOrgs));
+      filteredMOUs = filteredMOUs.filter(m => matchesOrg(m.campus_id, validOrgs));
+      filteredIPs = filteredIPs.filter(i => matchesOrg(i.campus_id, validOrgs));
     }
 
     // 3. Filter by Specific Organization ID (which is actually nameEn)
     if (filterOrgId !== 'ALL') {
-      filteredProjects = filteredProjects.filter(p => p.campus_id === filterOrgId);
-      filteredPubs = filteredPubs.filter(pub => {
-        const proj = projects.find(p => p.project_id === pub.ref_project_id);
-        return proj && proj.campus_id === filterOrgId;
-      });
-      // Personnel mapping check
       const targetOrg = ALL_ORGANIZATIONS.find(o => o.nameEn === filterOrgId);
       if (targetOrg) {
-        filteredPersonnel = filteredPersonnel.filter(p => p.organization_name === targetOrg.nameEn || p.organization_name === targetOrg.nameTh);
+        const validOrgs = [targetOrg];
+        filteredProjects = filteredProjects.filter(p => matchesOrg(p.campus_id, validOrgs));
+        filteredPubs = filteredPubs.filter(pub => {
+          const targetCampusId = pub.ref_project_id ? projects.find(p => p.project_id === pub.ref_project_id)?.campus_id : pub.campus_id;
+          return matchesOrg(targetCampusId, validOrgs);
+        });
+        filteredPersonnel = filteredPersonnel.filter(p => matchesOrg(p.organization_name, validOrgs));
+        filteredMOUs = filteredMOUs.filter(m => matchesOrg(m.campus_id, validOrgs));
+        filteredIPs = filteredIPs.filter(i => matchesOrg(i.campus_id, validOrgs));
       }
-      
-      filteredMOUs = filteredMOUs.filter(m => m.campus_id === filterOrgId);
-      filteredIPs = filteredIPs.filter(i => i.campus_id === filterOrgId);
     }
 
     return {
@@ -103,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
       mous: filteredMOUs,
       ips: filteredIPs
     };
-  }, [projects, publications, personnel, mous, ips, filterRegion, filterOrgType, filterOrgId]);
+  }, [projects, publications, personnel, mous, ips, filterRegion, filterOrgType, filterOrgId, user]);
 
   // Data filtered by year for KPI cards
   const yearFilteredData = useMemo(() => {
@@ -179,31 +193,48 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
       };
     });
 
+    // Helper to get org id
+    const getOrgId = (campusId: string | undefined) => {
+      if (!campusId) return null;
+      const org = ALL_ORGANIZATIONS.find(o => o.id === campusId || o.nameEn === campusId || o.nameTh === campusId);
+      return org ? org.id : null;
+    };
+
     // Count Projects
     yearFilteredData.projects.forEach(p => {
-      if (stats[p.campus_id]) stats[p.campus_id].projects++;
+      const orgId = getOrgId(p.campus_id);
+      if (orgId && stats[orgId]) stats[orgId].projects++;
     });
 
     // Count Pubs
     yearFilteredData.publications.forEach(pub => {
-      const proj = projects.find(p => p.project_id === pub.ref_project_id);
-      if (proj && stats[proj.campus_id]) stats[proj.campus_id].pubs++;
+      let campusId = pub.campus_id;
+      if (pub.ref_project_id) {
+        const proj = projects.find(p => p.project_id === pub.ref_project_id);
+        campusId = proj?.campus_id;
+      }
+      if (campusId) {
+        const orgId = getOrgId(campusId);
+        if (orgId && stats[orgId]) stats[orgId].pubs++;
+      }
     });
 
     // Count Personnel
     yearFilteredData.personnel.forEach(p => {
-       const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.organization_name || o.nameTh === p.organization_name);
-       if (org && stats[org.id]) stats[org.id].personnel++;
+       const orgId = getOrgId(p.organization_name);
+       if (orgId && stats[orgId]) stats[orgId].personnel++;
     });
 
     // Count MOUs
     yearFilteredData.mous.forEach(m => {
-      if (m.campus_id && stats[m.campus_id]) stats[m.campus_id].mous++;
+      const orgId = getOrgId(m.campus_id);
+      if (orgId && stats[orgId]) stats[orgId].mous++;
     });
 
     // Count IPs
     yearFilteredData.ips.forEach(i => {
-      if (i.campus_id && stats[i.campus_id]) stats[i.campus_id].ips++;
+      const orgId = getOrgId(i.campus_id);
+      if (orgId && stats[orgId]) stats[orgId].ips++;
     });
 
     return Object.values(stats).filter(s => s.projects > 0 || s.pubs > 0 || s.personnel > 0 || s.mous > 0 || s.ips > 0);
@@ -220,16 +251,26 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, publications, personnel
     if (filterYear !== 'ALL') {
       filteredStats = filteredStats.filter(s => s.fiscal_year === filterYear);
     }
+    
+    // Helper function for stats
+    const matchesStatOrg = (campusId: string | undefined, validOrgs: typeof ALL_ORGANIZATIONS) => {
+      if (!campusId) return false;
+      return validOrgs.some(org => org.id === campusId || org.nameEn === campusId || org.nameTh === campusId);
+    };
+
     if (filterRegion !== 'ALL') {
-      const validOrgNames = ALL_ORGANIZATIONS.filter(org => org.region === filterRegion).map(org => org.nameEn);
-      filteredStats = filteredStats.filter(s => validOrgNames.includes(s.campus_id));
+      const validOrgs = ALL_ORGANIZATIONS.filter(org => org.region === filterRegion);
+      filteredStats = filteredStats.filter(s => matchesStatOrg(s.campus_id, validOrgs));
     }
     if (filterOrgType !== 'ALL') {
-      const validOrgNames = ALL_ORGANIZATIONS.filter(org => org.type === filterOrgType).map(org => org.nameEn);
-      filteredStats = filteredStats.filter(s => validOrgNames.includes(s.campus_id));
+      const validOrgs = ALL_ORGANIZATIONS.filter(org => org.type === filterOrgType);
+      filteredStats = filteredStats.filter(s => matchesStatOrg(s.campus_id, validOrgs));
     }
     if (filterOrgId !== 'ALL') {
-      filteredStats = filteredStats.filter(s => s.campus_id === filterOrgId);
+      const targetOrg = ALL_ORGANIZATIONS.find(o => o.nameEn === filterOrgId);
+      if (targetOrg) {
+        filteredStats = filteredStats.filter(s => matchesStatOrg(s.campus_id, [targetOrg]));
+      }
     }
 
     const totalRegular = filteredStats.reduce((sum, s) => sum + (s.total_lecturers || 0), 0);

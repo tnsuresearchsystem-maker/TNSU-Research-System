@@ -98,6 +98,8 @@ export const TRANSLATIONS = {
     editPub: "Edit Publication Details",
     addUtil: "Add Utilization Record",
     addPersonnel: "Add Personnel Record",
+    personnelDetails: "Personnel Details",
+    viewDetails: "View Details",
     addUser: "Add New User",
     editUser: "Edit User Profile",
     editUtil: "Edit Utilization Record",
@@ -173,6 +175,7 @@ export const TRANSLATIONS = {
     selectFaculty: "Select Faculty",
     reportingPeriod: "Reporting Period",
     selectReportingPeriod: "Select Period",
+    independentPublication: "Independent Publication",
     confirmDeleteProject: "Are you sure you want to delete this project? This action cannot be undone.",
     deleteError: "Failed to delete project. Please try again.",
     
@@ -241,6 +244,7 @@ export const TRANSLATIONS = {
     allYears: "All Years",
     allDisciplines: "All Disciplines",
     allStatuses: "All Statuses",
+    allLevels: "All Levels",
     
     // CSV Import Modal
     importDataTitle: "Import Data",
@@ -290,6 +294,7 @@ export const TRANSLATIONS = {
     noLogsFound: "No logs found.",
     loading: "Loading...",
     loadMoreLogs: "Load More Logs",
+    loadMore: "Load More Data",
     passwordPlaceholderEdit: "******** (Leave empty to keep)",
     passwordPlaceholderNew: "Set password",
     passwordResetHint: "Enter new password only if you want to reset it.",
@@ -389,6 +394,8 @@ export const TRANSLATIONS = {
     editPub: "แก้ไขข้อมูลผลงานตีพิมพ์",
     addUtil: "เพิ่มข้อมูลการนำไปใช้ประโยชน์",
     addPersonnel: "เพิ่มประวัติการพัฒนาบุคลากร",
+    personnelDetails: "รายละเอียดการพัฒนาบุคลากร",
+    viewDetails: "ดูรายละเอียด",
     addUser: "เพิ่มผู้ใช้งานใหม่",
     editUser: "แก้ไขข้อมูลผู้ใช้งาน",
     editUtil: "แก้ไขข้อมูลการนำไปใช้ประโยชน์",
@@ -464,6 +471,7 @@ export const TRANSLATIONS = {
     selectFaculty: "เลือกคณะ",
     reportingPeriod: "รอบการรายงาน",
     selectReportingPeriod: "เลือกรอบการรายงาน",
+    independentPublication: "ผลงานตีพิมพ์อิสระ",
     confirmDeleteProject: "ยืนยันการลบโครงการนี้? (ไม่สามารถกู้คืนได้)",
     deleteError: "ลบโครงการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
 
@@ -532,6 +540,7 @@ export const TRANSLATIONS = {
     allYears: "ทุกปีงบประมาณ",
     allDisciplines: "ทุกกลุ่มสาขาวิชา",
     allStatuses: "ทุกสถานะ",
+    allLevels: "ทุกระดับ",
 
     // CSV Import Modal
     importDataTitle: "นำเข้าข้อมูล",
@@ -581,6 +590,7 @@ export const TRANSLATIONS = {
     noLogsFound: "ไม่พบประวัติการใช้งาน",
     loading: "กำลังโหลด...",
     loadMoreLogs: "โหลดเพิ่มเติม",
+    loadMore: "โหลดข้อมูลเพิ่มเติม",
     passwordPlaceholderEdit: "******** (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)",
     passwordPlaceholderNew: "กำหนดรหัสผ่าน",
     passwordResetHint: "กรอกรหัสผ่านใหม่เฉพาะเมื่อต้องการเปลี่ยนเท่านั้น",

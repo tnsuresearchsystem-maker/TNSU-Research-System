@@ -28,7 +28,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({
+        ...initialData,
+        owner_organization: initialData.owner_organization || initialData.campus_id
+      });
     }
   }, [initialData]);
 
@@ -39,13 +42,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
       ...formData as ProjectMaster,
       project_id: initialData?.project_id || `p_${Math.random().toString(36).substr(2, 6)}`,
       budget_amount: Number(formData.budget_amount),
-      approval_status: formData.approval_status || ApprovalStatus.Draft
+      approval_status: formData.approval_status || ApprovalStatus.Draft,
+      campus_id: formData.campus_id || formData.owner_organization || ''
     };
     onSave(projectToSave);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'owner_organization') {
+      setFormData({ ...formData, owner_organization: value, campus_id: value });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const isAdmin = user?.role === 'Admin';
@@ -151,9 +160,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onSave, onCancel, initialData
             name="owner_organization" 
             value={formData.owner_organization || formData.campus_id || ''} 
             onChange={handleChange}
-            className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 transition-all hover:border-tnsu-green-300"
+            className={`w-full border-gray-300 rounded-lg shadow-sm focus:ring-tnsu-green-500 focus:border-tnsu-green-500 border p-2.5 transition-all hover:border-tnsu-green-300 ${!isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             required
             placeholder={t('selectOrg')}
+            disabled={!isAdmin}
           />
           <datalist id="org-list">
             {ALL_ORGANIZATIONS.map(org => (

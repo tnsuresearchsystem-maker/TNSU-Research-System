@@ -139,8 +139,8 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
               </h3>
               
               <div className="space-y-3">
-                  {linkedPubs.length > 0 ? linkedPubs.map(pub => (
-                      <div key={pub.output_id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition-colors">
+                  {linkedPubs.length > 0 ? linkedPubs.map((pub, index) => (
+                      <div key={`${pub.output_id}-${index}`} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition-colors">
                           <div className="flex justify-between items-start mb-1">
                               <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded border border-green-100">
                                   {pub.output_reporting_year}
@@ -175,8 +175,8 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ project, publications, 
               </h3>
 
                <div className="space-y-3">
-                  {linkedUtils.length > 0 ? linkedUtils.map(ut => (
-                      <div key={ut.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition-colors relative overflow-hidden">
+                  {linkedUtils.length > 0 ? linkedUtils.map((ut, index) => (
+                      <div key={`${ut.id}-${index}`} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition-colors relative overflow-hidden">
                           <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                           <div className="flex justify-between items-start mb-2 pl-2">
                                <span className="text-xs font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded">

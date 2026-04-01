@@ -119,9 +119,13 @@ export interface FacultyLecturerCount {
 
 export interface PublicationOutput {
   output_id: string;
-  ref_project_id: string; // Foreign Key to ProjectMaster
+  ref_project_id?: string; // Optional for non-project publications
+  campus_id?: string; // Added for non-project publications
   output_reporting_year: FiscalYear;
   article_title: string;
+  authors?: string; // Added for non-project publications
+  faculty?: string; // Added for non-project publications
+  database_type?: string; // Added for non-project publications
   publication_level: PublicationLevel;
   publication_type: PublicationType;
   is_published: boolean;

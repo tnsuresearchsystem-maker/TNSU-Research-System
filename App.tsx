@@ -1,7 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
+import { Toaster, toast } from 'sonner';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
+import ProjectsTab from './components/tabs/ProjectsTab';
+import PublicationsTab from './components/tabs/PublicationsTab';
+import PersonnelTab from './components/tabs/PersonnelTab';
 import ProjectForm from './components/ProjectForm';
 import PublicationForm from './components/PublicationForm';
 import UtilizationForm from './components/UtilizationForm';
@@ -13,11 +17,13 @@ import ProjectDetails from './components/ProjectDetails';
 import Login from './components/Login';
 import CSVImportModal from './components/CSVImportModal';
 import FacultyLecturerModal from './components/FacultyLecturerModal';
+import FilterBar from './components/FilterBar';
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, ReportingPeriod, ResearchCategory, ProjectStatus, FacultyLecturerCount, OrganizationType } from './types';
 import { FISCAL_YEARS, ALL_ORGANIZATIONS, REGIONS, FACULTIES } from './constants';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { getProjectsFromDB, getPublicationsFromDB, getUtilizationsFromDB, getPersonnelFromDB, getMOUsFromDB, getIPsFromDB, getUsersFromDB, getFacultyStatsFromDB, addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, addUtilizationToDB, updateUtilizationInDB, addPersonnelToDB, updatePersonnelInDB, addMOUToDB, addIPToDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
+import { useAppData } from './hooks/useAppData';
+import { addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, deletePublicationFromDB, addUtilizationToDB, updateUtilizationInDB, deleteUtilizationFromDB, addPersonnelToDB, updatePersonnelInDB, deletePersonnelFromDB, addMOUToDB, updateMOUInDB, deleteMOUFromDB, addIPToDB, updateIPInDB, deleteIPFromDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
 import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
 import { CSVType, exportToCSV } from './services/csvService';
 import { ChangePasswordForm } from './components/ChangePasswordForm';
@@ -28,22 +34,30 @@ function AppContent() {
   const isAdmin = user?.role === 'Admin';
   
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [projects, setProjects] = useState<ProjectMaster[]>([]);
-  const [publications, setPublications] = useState<PublicationOutput[]>([]);
-  const [utilizations, setUtilizations] = useState<Utilization[]>([]);
-  const [personnel, setPersonnel] = useState<PersonnelDevelopment[]>([]);
-  const [mous, setMOUs] = useState<MOU[]>([]);
-  const [ips, setIPs] = useState<IntellectualProperty[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [facultyStats, setFacultyStats] = useState<FacultyLecturerCount[]>([]);
+  const [previousTab, setPreviousTab] = useState<string | null>(null);
+  
+  const {
+    projects,
+    publications,
+    utilizations,
+    personnel,
+    mous,
+    ips,
+    users,
+    facultyStats,
+    isLoading,
+    appError,
+    clearError,
+    loadMoreData,
+    dataLimit
+  } = useAppData(user);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSeeding, setIsSeeding] = useState(false);
-  const [appError, setAppError] = useState<Error | null>(null);
   
   // Views control
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showPubForm, setShowPubForm] = useState(false);
+  const [isAddingIndependent, setIsAddingIndependent] = useState(false);
   const [showUtilForm, setShowUtilForm] = useState(false);
   const [showPersonnelForm, setShowPersonnelForm] = useState(false);
   const [showFacultyModal, setShowFacultyModal] = useState(false);
@@ -56,8 +70,11 @@ function AppContent() {
   const [editingProject, setEditingProject] = useState<ProjectMaster | null>(null);
   const [editingUtilization, setEditingUtilization] = useState<Utilization | null>(null);
   const [editingPersonnel, setEditingPersonnel] = useState<PersonnelDevelopment | null>(null);
+  const [viewingPersonnel, setViewingPersonnel] = useState<PersonnelDevelopment | null>(null);
   const [editingPublication, setEditingPublication] = useState<PublicationOutput | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingMOU, setEditingMOU] = useState<MOU | null>(null);
+  const [editingIP, setEditingIP] = useState<IntellectualProperty | null>(null);
   
   // Search States
   const [utilSearchQuery, setUtilSearchQuery] = useState('');
@@ -68,62 +85,6 @@ function AppContent() {
   const [filterRegion, setFilterRegion] = useState<string>('');
   const [filterResearchCategory, setFilterResearchCategory] = useState<string>('');
   const [filterProjectStatus, setFilterProjectStatus] = useState<string>('');
-
-  // Fetch Data function
-  const fetchData = async () => {
-    setIsLoading(true);
-    setAppError(null);
-    let firstError: Error | null = null;
-    
-    try {
-      // Fetch projects first because publications and utilizations depend on them for filtering if not Admin
-      let fetchedProjects: ProjectMaster[] = [];
-      try {
-        fetchedProjects = await getProjectsFromDB(user);
-        setProjects(fetchedProjects);
-      } catch (e) {
-        console.error("Failed to load projects", e);
-        firstError = e instanceof Error ? e : new Error(String(e));
-        setAppError(firstError);
-      }
-      
-      // If admin, fetch users too
-      const [fetchedPubs, fetchedUtils, fetchedPersonnel, fetchedMOUs, fetchedIPs, fetchedFacultyStats] = await Promise.all([
-        getPublicationsFromDB(user, fetchedProjects),
-        getUtilizationsFromDB(user, fetchedProjects),
-        getPersonnelFromDB(user),
-        getMOUsFromDB(user),
-        getIPsFromDB(user),
-        getFacultyStatsFromDB(user)
-      ]);
-      
-      setPublications(fetchedPubs);
-      setUtilizations(fetchedUtils);
-      setPersonnel(fetchedPersonnel);
-      setMOUs(fetchedMOUs);
-      setIPs(fetchedIPs);
-      setFacultyStats(fetchedFacultyStats);
-
-      // Fetch users separately
-      if (user?.role === 'Admin') {
-         const fetchedUsers = await getUsersFromDB();
-         setUsers(fetchedUsers);
-      }
-
-    } catch (error) {
-      console.error("Failed to load data", error);
-      setAppError(error instanceof Error ? error : new Error(String(error)));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch Data from Firebase on Load
-  useEffect(() => {
-    if (user && !user.mustChangePassword) {
-      fetchData();
-    }
-  }, [user]);
 
   // If no user is logged in, show Login
   if (!user) {
@@ -138,24 +99,23 @@ function AppContent() {
   const handleSaveProject = async (project: ProjectMaster) => {
     if (editingProject) {
       try {
-        setProjects(prev => prev.map(p => p.project_id === project.project_id ? project : p));
         setShowProjectForm(false);
         setEditingProject(null);
         await updateProjectInDB(project);
         if (selectedProject?.project_id === project.project_id) {
            setSelectedProject(project);
         }
+        toast.success(t('saveSuccess') || "Project updated successfully");
       } catch (error) {
-        alert("Error updating project in database.");
-        fetchData();
+        toast.error("Error updating project in database.");
       }
     } else {
       try {
-        setProjects(prev => [...prev, project]);
         setShowProjectForm(false);
         await addProjectToDB(project);
+        toast.success(t('saveSuccess') || "Project added successfully");
       } catch (error) {
-        alert("Error saving project to database.");
+        toast.error("Error saving project to database.");
       }
     }
   };
@@ -163,21 +123,20 @@ function AppContent() {
   const handleSavePublication = async (pub: PublicationOutput) => {
     if (editingPublication) {
       try {
-        setPublications(prev => prev.map(p => p.output_id === pub.output_id ? pub : p));
         setShowPubForm(false);
         setEditingPublication(null);
         await updatePublicationInDB(pub);
+        toast.success(t('saveSuccess') || "Publication updated successfully");
       } catch (error) {
-        alert("Error updating publication in database.");
-        fetchData();
+        toast.error("Error updating publication in database.");
       }
     } else {
       try {
-        setPublications(prev => [...prev, pub]);
         setShowPubForm(false);
         await addPublicationToDB(pub);
+        toast.success(t('saveSuccess') || "Publication added successfully");
       } catch (error) {
-        alert("Error saving publication to database.");
+        toast.error("Error saving publication to database.");
       }
     }
   };
@@ -185,21 +144,20 @@ function AppContent() {
   const handleSaveUtilization = async (util: Utilization) => {
     if (editingUtilization) {
       try {
-        setUtilizations(prev => prev.map(u => u.id === util.id ? util : u));
         setShowUtilForm(false);
         setEditingUtilization(null);
         await updateUtilizationInDB(util);
+        toast.success(t('saveSuccess') || "Utilization updated successfully");
       } catch (error) {
-         alert("Error updating utilization in database.");
-         fetchData();
+         toast.error("Error updating utilization in database.");
       }
     } else {
       try {
-         setUtilizations(prev => [...prev, util]);
          setShowUtilForm(false);
          await addUtilizationToDB(util);
+         toast.success(t('saveSuccess') || "Utilization added successfully");
       } catch (error) {
-        alert("Error saving utilization to database.");
+        toast.error("Error saving utilization to database.");
       }
     }
   };
@@ -207,62 +165,83 @@ function AppContent() {
   const handleSavePersonnel = async (pd: PersonnelDevelopment) => {
     if (editingPersonnel) {
       try {
-        setPersonnel(prev => prev.map(p => p.id === pd.id ? pd : p));
         setShowPersonnelForm(false);
         setEditingPersonnel(null);
         await updatePersonnelInDB(pd);
+        toast.success(t('saveSuccess') || "Personnel record updated successfully");
       } catch (error) {
-        alert("Error updating personnel record.");
-        fetchData();
+        toast.error("Error updating personnel record.");
       }
     } else {
       try {
-        setPersonnel(prev => [...prev, pd]);
         setShowPersonnelForm(false);
         await addPersonnelToDB(pd);
+        toast.success(t('saveSuccess') || "Personnel record added successfully");
       } catch (error) {
-        alert("Error saving personnel record.");
+        toast.error("Error saving personnel record.");
       }
     }
   };
 
   const handleSaveMOU = async (mou: MOU) => {
-    try {
-      setMOUs(prev => [...prev, mou]);
-      setShowAssetFormType(null);
-      await addMOUToDB(mou);
-    } catch (error) {
-      alert("Error saving MOU.");
+    if (editingMOU) {
+      try {
+        setShowAssetFormType(null);
+        setEditingMOU(null);
+        await updateMOUInDB(mou);
+        toast.success(t('saveSuccess') || "MOU updated successfully");
+      } catch (error) {
+        toast.error("Error updating MOU.");
+      }
+    } else {
+      try {
+        setShowAssetFormType(null);
+        await addMOUToDB(mou);
+        toast.success(t('saveSuccess') || "MOU added successfully");
+      } catch (error) {
+        toast.error("Error saving MOU.");
+      }
     }
   };
 
   const handleSaveIP = async (ip: IntellectualProperty) => {
-    try {
-      setIPs(prev => [...prev, ip]);
-      setShowAssetFormType(null);
-      await addIPToDB(ip);
-    } catch (error) {
-      alert("Error saving IP.");
+    if (editingIP) {
+      try {
+        setShowAssetFormType(null);
+        setEditingIP(null);
+        await updateIPInDB(ip);
+        toast.success(t('saveSuccess') || "IP updated successfully");
+      } catch (error) {
+        toast.error("Error updating IP.");
+      }
+    } else {
+      try {
+        setShowAssetFormType(null);
+        await addIPToDB(ip);
+        toast.success(t('saveSuccess') || "IP added successfully");
+      } catch (error) {
+        toast.error("Error saving IP.");
+      }
     }
   };
 
   const handleSaveUser = async (u: User) => {
      if (editingUser) {
         try {
-           setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr));
            setShowUserForm(false);
            setEditingUser(null);
-           await updateUserInDB(u, user); // Pass 'user' for logging
+           await updateUserInDB(u, user);
+           toast.success(t('saveSuccess') || "User updated successfully");
         } catch (error) {
-           alert("Error updating user.");
+           toast.error("Error updating user.");
         }
      } else {
         try {
-           setUsers(prev => [...prev, u]);
            setShowUserForm(false);
-           await addUserToDB(u, user); // Pass 'user' for logging
+           await addUserToDB(u, user);
+           toast.success(t('saveSuccess') || "User added successfully");
         } catch (error: any) {
-           alert(error.message || "Error adding user.");
+           toast.error(error.message || "Error adding user.");
         }
      }
   };
@@ -271,32 +250,29 @@ function AppContent() {
     const uniqueNewUsers = newUsers.filter(nu => !users.some(u => u.username === nu.username));
     
     if (uniqueNewUsers.length === 0) {
-      alert("All users in CSV already exist.");
+      toast.info("All users in CSV already exist.");
       return;
     }
 
     try {
-      setUsers(prev => [...prev, ...uniqueNewUsers]);
-      // Save to DB in parallel
       await Promise.all(uniqueNewUsers.map(u => addUserToDB(u)));
-      // Log the bulk action
       if (user) {
         await logUserActivity(user, 'IMPORT', 'User', `Bulk imported ${uniqueNewUsers.length} users via CSV`);
       }
+      toast.success(`Successfully imported ${uniqueNewUsers.length} users.`);
     } catch (error) {
       console.error("Bulk add error:", error);
-      alert("Some users might not have been saved due to errors.");
-      fetchData(); 
+      toast.error("Some users might not have been saved due to errors.");
     }
   };
 
   const handleDeleteUser = async (id: string) => {
       if (confirm(t('confirmDeleteUser'))) {
           try {
-              setUsers(prev => prev.filter(u => u.id !== id));
-              await deleteUserFromDB(id, user || undefined); // Pass 'user' for logging
+              await deleteUserFromDB(id, user || undefined);
+              toast.success("User deleted successfully");
           } catch (error) {
-              alert("Error deleting user");
+              toast.error("Error deleting user");
           }
       }
   };
@@ -309,9 +285,9 @@ function AppContent() {
         if (user) {
            await logUserActivity(user, 'CREATE', 'System', 'Seeded initial database data');
         }
-        await fetchData(); // Reload data
+        toast.success("Data seeded successfully");
       } catch (e) {
-        alert("Error seeding data");
+        toast.error("Error seeding data");
       } finally {
         setIsSeeding(false);
       }
@@ -322,14 +298,88 @@ function AppContent() {
     if (window.confirm(t('confirmDeleteProject'))) {
       try {
         await deleteProjectFromDB(project.project_id);
-        setProjects(prev => prev.filter(p => p.project_id !== project.project_id));
-        // Log activity
         if (user) {
           await logUserActivity(user, 'DELETE', 'Project', `Deleted project: ${project.project_name}`);
         }
+        toast.success("Project deleted successfully");
       } catch (error) {
         console.error("Failed to delete project:", error);
-        alert(t('deleteError'));
+        toast.error(t('deleteError') || "Error deleting project");
+      }
+    }
+  };
+
+  const handleDeletePublication = async (pub: PublicationOutput) => {
+    if (window.confirm("Are you sure you want to delete this publication?")) {
+      try {
+        await deletePublicationFromDB(pub.output_id);
+        if (user) {
+          await logUserActivity(user, 'DELETE', 'Publication', `Deleted publication: ${pub.article_title}`);
+        }
+        toast.success("Publication deleted successfully");
+      } catch (error) {
+        console.error("Failed to delete publication:", error);
+        toast.error("Error deleting publication");
+      }
+    }
+  };
+
+  const handleDeleteUtilization = async (util: Utilization) => {
+    if (window.confirm("Are you sure you want to delete this utilization?")) {
+      try {
+        await deleteUtilizationFromDB(util.id);
+        if (user) {
+          await logUserActivity(user, 'DELETE', 'Publication', `Deleted utilization: ${util.description}`);
+        }
+        toast.success("Utilization deleted successfully");
+      } catch (error) {
+        console.error("Failed to delete utilization:", error);
+        toast.error("Error deleting utilization");
+      }
+    }
+  };
+
+  const handleDeletePersonnel = async (personnel: PersonnelDevelopment) => {
+    if (window.confirm("Are you sure you want to delete this personnel record?")) {
+      try {
+        await deletePersonnelFromDB(personnel.id);
+        if (user) {
+          await logUserActivity(user, 'DELETE', 'System', `Deleted personnel: ${personnel.staff_name}`);
+        }
+        toast.success("Personnel deleted successfully");
+      } catch (error) {
+        console.error("Failed to delete personnel:", error);
+        toast.error("Error deleting personnel");
+      }
+    }
+  };
+
+  const handleDeleteMOU = async (mou: MOU) => {
+    if (window.confirm("Are you sure you want to delete this MOU?")) {
+      try {
+        await deleteMOUFromDB(mou.id);
+        if (user) {
+          await logUserActivity(user, 'DELETE', 'Asset', `Deleted MOU: ${mou.external_org_name}`);
+        }
+        toast.success("MOU deleted successfully");
+      } catch (error) {
+        console.error("Failed to delete MOU:", error);
+        toast.error("Error deleting MOU");
+      }
+    }
+  };
+
+  const handleDeleteIP = async (ip: IntellectualProperty) => {
+    if (window.confirm("Are you sure you want to delete this IP?")) {
+      try {
+        await deleteIPFromDB(ip.id);
+        if (user) {
+          await logUserActivity(user, 'DELETE', 'Asset', `Deleted IP: ${ip.work_name}`);
+        }
+        toast.success("IP deleted successfully");
+      } catch (error) {
+        console.error("Failed to delete IP:", error);
+        toast.error("Error deleting IP");
       }
     }
   };
@@ -447,12 +497,11 @@ function AppContent() {
         await logUserActivity(user, 'IMPORT', 'System', `Bulk imported ${data.length} records for ${csvImportType}`);
       }
       
-      alert(`Successfully imported ${data.length} records.`);
+      toast.success(`Successfully imported ${data.length} records.`);
       setCsvImportType(null);
-      fetchData();
     } catch (error) {
       console.error("Import error:", error);
-      alert("Error importing data. Please check the console and your CSV format.");
+      toast.error("Error importing data. Please check the console and your CSV format.");
     }
   };
 
@@ -461,6 +510,13 @@ function AppContent() {
     const fac = FACULTIES.find(f => f.id === facultyId);
     if (!fac) return facultyId; // Fallback to raw value if not found (e.g. old data)
     return language === 'th' ? fac.nameTh : fac.nameEn;
+  };
+
+  const getOrgName = (orgId: string | undefined) => {
+    if (!orgId) return '-';
+    const org = ALL_ORGANIZATIONS.find(o => o.id === orgId || o.nameEn === orgId || o.nameTh === orgId);
+    if (!org) return orgId;
+    return language === 'th' ? org.nameTh : org.nameEn;
   };
 
   const renderContent = () => {
@@ -488,623 +544,94 @@ function AppContent() {
     }
 
     if (activeTab === 'projects') {
-      if (showProjectForm) {
-        return (
-          <ProjectForm 
-            onSave={handleSaveProject} 
-            onCancel={() => { setShowProjectForm(false); setEditingProject(null); }} 
-            initialData={editingProject}
-          />
-        );
-      }
-      
-      if (selectedProject) {
-        return (
-          <ProjectDetails 
-            project={selectedProject} 
-            publications={publications}
-            utilizations={utilizations}
-            onBack={() => setSelectedProject(null)}
-            onEdit={(p) => {
-               setEditingProject(p);
-               setShowProjectForm(true);
-            }} 
-          />
-        );
-      }
-
-      // Filter logic
-      const filteredProjects = projects.filter(p => {
-        if (filterFiscalYear && p.funding_fiscal_year !== filterFiscalYear) return false;
-        if (filterCampus && p.campus_id !== filterCampus) return false;
-        if (filterReportingPeriod && p.reporting_period !== filterReportingPeriod) return false;
-        if (filterResearchCategory && p.research_category !== filterResearchCategory) return false;
-        if (filterProjectStatus && p.status !== filterProjectStatus) return false;
-        
-        if (filterRegion) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.campus_id);
-          if (!org || org.region !== filterRegion) return false;
-        }
-        if (filterOrgType) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === p.campus_id);
-          if (!org || org.type !== filterOrgType) return false;
-        }
-
-        // If not admin, only show projects from their own campus
-        if (user?.role !== 'Admin' && p.campus_id !== user?.organization.nameEn) return false;
-        
-        return true;
-      });
-
       return (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-             <h2 className="text-2xl font-bold text-gray-800">{t('projects')}</h2>
-             <div className="flex flex-wrap gap-2 md:gap-3">
-               {/* Region Filter (Admin only) */}
-               {user?.role === 'Admin' && (
-                 <select
-                   value={filterRegion}
-                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allRegions')}</option>
-                   {REGIONS.map(region => (
-                     <option key={region} value={region}>
-                       {language === 'th' ? 
-                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
-                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
-                          region === 'Central Region' ? 'ภาคกลาง' : 
-                          region === 'Southern Region' ? 'ภาคใต้' : region) 
-                         : region}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               {/* Org Type Filter (Admin only) */}
-               {user?.role === 'Admin' && (
-                 <select
-                   value={filterOrgType}
-                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allTypes') || 'All Types'}</option>
-                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
-                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
-                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
-                 </select>
-               )}
-               {/* Campus Filter (Admin only) */}
-               {user?.role === 'Admin' && (
-                 <select
-                   value={filterCampus}
-                   onChange={(e) => setFilterCampus(e.target.value)}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allOrgs')}</option>
-                   {ALL_ORGANIZATIONS
-                     .filter(org => !filterRegion || org.region === filterRegion)
-                     .filter(org => !filterOrgType || org.type === filterOrgType)
-                     .map(org => (
-                     <option key={org.id} value={org.nameEn}>
-                       {language === 'th' ? org.nameTh : org.nameEn}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               {/* Reporting Period Filter */}
-               <select
-                 value={filterReportingPeriod}
-                 onChange={(e) => setFilterReportingPeriod(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allPeriods')}</option>
-                 <option value={ReportingPeriod.Round6Months}>{ReportingPeriod.Round6Months}</option>
-                 <option value={ReportingPeriod.Round12Months}>{ReportingPeriod.Round12Months}</option>
-               </select>
-               {/* Fiscal Year Filter */}
-               <select
-                 value={filterFiscalYear}
-                 onChange={(e) => setFilterFiscalYear(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allYears')}</option>
-                 {FISCAL_YEARS.map(year => (
-                   <option key={year} value={year}>{year}</option>
-                 ))}
-               </select>
-               {/* Academic Discipline Filter */}
-               <select
-                 value={filterResearchCategory}
-                 onChange={(e) => setFilterResearchCategory(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allDisciplines')}</option>
-                 {Object.values(ResearchCategory).map(category => (
-                   <option key={category} value={category}>{category}</option>
-                 ))}
-               </select>
-               {/* Project Status Filter */}
-               <select
-                 value={filterProjectStatus}
-                 onChange={(e) => setFilterProjectStatus(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allStatuses')}</option>
-                 {Object.values(ProjectStatus).map(status => (
-                   <option key={status} value={status}>{status}</option>
-                 ))}
-               </select>
-               <button 
-                 onClick={() => setCsvImportType('project')}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
-                 {t('importCsv') || 'Import CSV'}
-               </button>
-               <button 
-                 onClick={() => exportToCSV(filteredProjects, 'project', `projects_export_${new Date().toISOString().split('T')[0]}.csv`)}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">download</span>
-                 {t('exportCsv') || 'Export CSV'}
-               </button>
-               <button 
-                onClick={() => { setEditingProject(null); setShowProjectForm(true); }}
-                className="bg-tnsu-green-600 hover:bg-tnsu-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-               >
-                 <span className="material-icons mr-2">add</span>
-                 {t('addProject')}
-               </button>
-             </div>
-          </div>
-          
-          <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('fiscalYear')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('reportingPeriod') || 'Reporting Period'}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('projectName')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('researcher')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('status')}</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProjects.map((p, index) => (
-                  <tr 
-                    key={`${p.project_id}_${index}`} 
-                    onClick={() => setSelectedProject(p)}
-                    className="hover:bg-blue-50 transition-colors cursor-pointer group"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 group-hover:text-blue-600 font-medium transition-colors">
-                      {p.project_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-tnsu-green-800">
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md">{p.funding_fiscal_year}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {p.reporting_period || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                      <div>{p.project_name}</div>
-                      {p.project_name_en && <div className="text-xs text-gray-500 font-light">{p.project_name_en}</div>}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{p.owner_organization || p.campus_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.head_researcher}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${p.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingProject(p);
-                          setShowProjectForm(true);
-                        }}
-                        className="inline-flex items-center px-3 py-1.5 border border-tnsu-green-200 shadow-sm text-xs font-medium rounded-md text-tnsu-green-700 bg-white hover:bg-tnsu-green-50 focus:outline-none transition-all z-10 relative"
-                        title={t('edit')}
-                      >
-                        <span className="material-icons text-sm mr-1.5 text-tnsu-green-600">edit</span>
-                        {t('edit')}
-                      </button>
-                      
-                      {/* Delete Button (Only if no linked data) */}
-                      {!(publications.some(pub => pub.ref_project_id === p.project_id) || utilizations.some(u => u.ref_project_id === p.project_id)) && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteProject(p);
-                          }}
-                          className="inline-flex items-center px-3 py-1.5 border border-red-200 shadow-sm text-xs font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none transition-all z-10 relative ml-2"
-                          title={t('delete')}
-                        >
-                          <span className="material-icons text-sm mr-1.5 text-red-600">delete</span>
-                          {t('delete')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ProjectsTab 
+          projects={projects}
+          publications={publications}
+          utilizations={utilizations}
+          filterRegion={filterRegion}
+          setFilterRegion={setFilterRegion}
+          filterOrgType={filterOrgType}
+          setFilterOrgType={setFilterOrgType}
+          filterCampus={filterCampus}
+          setFilterCampus={setFilterCampus}
+          filterReportingPeriod={filterReportingPeriod}
+          setFilterReportingPeriod={setFilterReportingPeriod}
+          filterFiscalYear={filterFiscalYear}
+          setFilterFiscalYear={setFilterFiscalYear}
+          filterResearchCategory={filterResearchCategory}
+          setFilterResearchCategory={setFilterResearchCategory}
+          filterProjectStatus={filterProjectStatus}
+          setFilterProjectStatus={setFilterProjectStatus}
+          setCsvImportType={setCsvImportType}
+          exportToCSV={exportToCSV}
+          showProjectForm={showProjectForm}
+          setShowProjectForm={setShowProjectForm}
+          selectedProject={selectedProject}
+          setSelectedProject={setSelectedProject}
+          editingProject={editingProject}
+          setEditingProject={setEditingProject}
+          handleSaveProject={handleSaveProject}
+          handleDeleteProject={handleDeleteProject}
+          previousTab={previousTab}
+          setActiveTab={setActiveTab}
+          setPreviousTab={setPreviousTab}
+        />
       );
     }
 
     if (activeTab === 'publications') {
-      if (showPubForm) {
-        return (
-          <PublicationForm 
-            projects={projects} 
-            onSave={handleSavePublication} 
-            onCancel={() => { setShowPubForm(false); setEditingPublication(null); }} 
-            initialData={editingPublication}
-          />
-        );
-      }
-      
-      // Filter logic
-      const filteredPublications = publications.filter(pub => {
-        if (filterFiscalYear && pub.output_reporting_year !== filterFiscalYear) return false;
-        const proj = projects.find(p => p.project_id === pub.ref_project_id);
-        if (filterCampus && proj?.campus_id !== filterCampus) return false;
-        if (filterRegion) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === proj?.campus_id);
-          if (!org || org.region !== filterRegion) return false;
-        }
-        if (filterOrgType) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === proj?.campus_id);
-          if (!org || org.type !== filterOrgType) return false;
-        }
-        return true;
-      });
-
       return (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-             <h2 className="text-2xl font-bold text-gray-800">{t('publications')}</h2>
-             <div className="flex flex-wrap gap-2 md:gap-3">
-               {/* Fiscal Year Filter */}
-               <select
-                 value={filterFiscalYear}
-                 onChange={(e) => setFilterFiscalYear(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allYears')}</option>
-                 {FISCAL_YEARS.map(year => (
-                   <option key={year} value={year}>{year}</option>
-                 ))}
-               </select>
-               {isAdmin && (
-                 <select
-                   value={filterRegion}
-                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allRegions')}</option>
-                   {REGIONS.map(region => (
-                     <option key={region} value={region}>
-                       {language === 'th' ? 
-                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
-                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
-                          region === 'Central Region' ? 'ภาคกลาง' : 
-                          region === 'Southern Region' ? 'ภาคใต้' : region)
-                         : region}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               {isAdmin && (
-                 <select
-                   value={filterOrgType}
-                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allTypes') || 'All Types'}</option>
-                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
-                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
-                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
-                 </select>
-               )}
-               {isAdmin && (
-                 <select
-                   value={filterCampus}
-                   onChange={(e) => setFilterCampus(e.target.value)}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allOrgs')}</option>
-                   {ALL_ORGANIZATIONS
-                     .filter(org => !filterRegion || org.region === filterRegion)
-                     .filter(org => !filterOrgType || org.type === filterOrgType)
-                     .map(org => (
-                     <option key={org.id} value={org.nameEn}>
-                       {language === 'th' ? org.nameTh : org.nameEn}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               <button 
-                 onClick={() => setCsvImportType('publication')}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
-                 {t('importCsv') || 'Import CSV'}
-               </button>
-               <button 
-                 onClick={() => {
-                   const exportData = filteredPublications.map(pub => {
-                     const proj = projects.find(p => p.project_id === pub.ref_project_id);
-                     return {
-                       ...pub,
-                       campus_id: proj?.campus_id || '',
-                       project_name: proj?.project_name || ''
-                     };
-                   });
-                   exportToCSV(exportData, 'publication', `publications_export_${new Date().toISOString().split('T')[0]}.csv`);
-                 }}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">download</span>
-                 {t('exportCsv') || 'Export CSV'}
-               </button>
-               <button 
-                 onClick={() => { setEditingPublication(null); setShowPubForm(true); }}
-                 className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-               >
-                 <span className="material-icons mr-2">add</span>
-                 {t('addPub')}
-               </button>
-             </div>
-          </div>
-
-          <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('reportYear')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('linkProject')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('title')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('type')}</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPublications.map((pub, index) => {
-                  const project = projects.find(p => p.project_id === pub.ref_project_id);
-                  return (
-                    <tr key={`${pub.output_id}_${index}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700">
-                        <span className="bg-green-50 px-2 py-1 rounded border border-green-100">{pub.output_reporting_year}</span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {project ? (
-                          <div className="flex flex-col">
-                            <span 
-                              className="text-gray-900 font-medium hover:text-tnsu-green-700 cursor-pointer"
-                              onClick={() => {
-                                setActiveTab('projects');
-                                setSelectedProject(project);
-                              }}
-                            >
-                              {project.project_name}
-                            </span>
-                            <span className="text-xs text-gray-400 mt-1">Funded: {project.funding_fiscal_year}</span>
-                          </div>
-                        ) : 'Unknown Project'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{pub.article_title}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className="bg-gray-100 px-2 py-1 rounded text-gray-600 text-xs font-medium">{pub.publication_type}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          onClick={() => {
-                            setEditingPublication(pub);
-                            setShowPubForm(true);
-                          }}
-                          className="text-gray-400 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 rounded-full p-2"
-                          title={t('edit')}
-                        >
-                          <span className="material-icons text-lg">edit</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <PublicationsTab 
+          projects={projects}
+          publications={publications}
+          filterFiscalYear={filterFiscalYear}
+          setFilterFiscalYear={setFilterFiscalYear}
+          filterRegion={filterRegion}
+          setFilterRegion={setFilterRegion}
+          filterOrgType={filterOrgType}
+          setFilterOrgType={setFilterOrgType}
+          filterCampus={filterCampus}
+          setFilterCampus={setFilterCampus}
+          setCsvImportType={setCsvImportType}
+          exportToCSV={exportToCSV}
+          showPubForm={showPubForm}
+          setShowPubForm={setShowPubForm}
+          editingPublication={editingPublication}
+          setEditingPublication={setEditingPublication}
+          isAddingIndependent={isAddingIndependent}
+          setIsAddingIndependent={setIsAddingIndependent}
+          handleSavePublication={handleSavePublication}
+          handleDeletePublication={handleDeletePublication}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          setPreviousTab={setPreviousTab}
+          setSelectedProject={setSelectedProject}
+        />
       );
     }
     
     if (activeTab === 'personnel') {
-      if (showPersonnelForm) {
-        return (
-          <PersonnelForm 
-            onSave={handleSavePersonnel} 
-            onCancel={() => { setShowPersonnelForm(false); setEditingPersonnel(null); }} 
-            initialData={editingPersonnel}
-          />
-        );
-      }
-
-      // Filter logic
-      const filteredPersonnel = personnel.filter(pd => {
-        if (filterFiscalYear && pd.fiscal_year !== filterFiscalYear) return false;
-        if (filterCampus && pd.organization_name !== filterCampus) return false;
-        if (filterRegion) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === pd.organization_name);
-          if (!org || org.region !== filterRegion) return false;
-        }
-        if (filterOrgType) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === pd.organization_name);
-          if (!org || org.type !== filterOrgType) return false;
-        }
-        return true;
-      });
-
       return (
-        <div className="space-y-6">
-          {showFacultyModal && <FacultyLecturerModal onClose={() => setShowFacultyModal(false)} />}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-             <h2 className="text-2xl font-bold text-gray-800">{t('personnel')}</h2>
-             <div className="flex flex-wrap gap-2 md:gap-3">
-               {/* Fiscal Year Filter */}
-               <select
-                 value={filterFiscalYear}
-                 onChange={(e) => setFilterFiscalYear(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allYears')}</option>
-                 {FISCAL_YEARS.map(year => (
-                   <option key={year} value={year}>{year}</option>
-                 ))}
-               </select>
-               {isAdmin && (
-                 <select
-                   value={filterRegion}
-                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allRegions')}</option>
-                   {REGIONS.map(region => (
-                     <option key={region} value={region}>
-                       {language === 'th' ? 
-                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
-                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
-                          region === 'Central Region' ? 'ภาคกลาง' : 
-                          region === 'Southern Region' ? 'ภาคใต้' : region)
-                         : region}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               {isAdmin && (
-                 <select
-                   value={filterOrgType}
-                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allTypes') || 'All Types'}</option>
-                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
-                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
-                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
-                 </select>
-               )}
-               {isAdmin && (
-                 <select
-                   value={filterCampus}
-                   onChange={(e) => setFilterCampus(e.target.value)}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allOrgs')}</option>
-                   {ALL_ORGANIZATIONS
-                     .filter(org => !filterRegion || org.region === filterRegion)
-                     .filter(org => !filterOrgType || org.type === filterOrgType)
-                     .map(org => (
-                     <option key={org.id} value={org.nameEn}>
-                       {language === 'th' ? org.nameTh : org.nameEn}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               <button 
-                 onClick={() => setShowFacultyModal(true)}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">groups</span>
-                 {t('totalLecturers') || 'Total Lecturers'}
-               </button>
-               <button 
-                 onClick={() => exportToCSV(filteredPersonnel, 'personnel', `personnel_${new Date().toISOString().split('T')[0]}`)}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">download</span>
-                 {t('exportCsv') || 'Export CSV'}
-               </button>
-               <button 
-                 onClick={() => setCsvImportType('personnel')}
-                 className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center shadow-sm transition-colors"
-               >
-                 <span className="material-icons mr-2 text-gray-500">upload_file</span>
-                 {t('importCsv') || 'Import CSV'}
-               </button>
-               <button 
-                onClick={() => { setEditingPersonnel(null); setShowPersonnelForm(true); }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg flex items-center shadow-md transition-colors"
-               >
-                 <span className="material-icons mr-2">add</span>
-                 {t('addPersonnel')}
-               </button>
-             </div>
-          </div>
-
-          <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('fiscalYear')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('staffName')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('faculty') || 'Faculty (คณะ)'}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('campusOrg')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('courseName')}</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('devType')}</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPersonnel.map((pd, index) => (
-                  <tr key={`${pd.id}_${index}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-700">
-                      <span className="bg-indigo-50 px-2 py-1 rounded border border-indigo-100">{pd.fiscal_year}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pd.staff_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFacultyName(pd.faculty)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pd.organization_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={pd.course_name}>{pd.course_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex flex-col">
-                        <span className="bg-gray-100 px-2 py-1 rounded text-gray-600 text-xs font-medium w-fit mb-1">{pd.development_type}</span>
-                        <span className="text-xs text-gray-400">{pd.duration_hours} Hrs • {pd.activity_date}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        {pd.certificate_url && (
-                          <button 
-                            className="text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-full p-2"
-                            title="View PDF"
-                          >
-                            <span className="material-icons text-lg">picture_as_pdf</span>
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => {
-                            setEditingPersonnel(pd);
-                            setShowPersonnelForm(true);
-                          }}
-                          className="text-gray-400 hover:text-indigo-600 transition-colors bg-white hover:bg-indigo-50 rounded-full p-2"
-                          title={t('edit')}
-                        >
-                          <span className="material-icons text-lg">edit</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <PersonnelTab 
+          personnel={personnel}
+          filterFiscalYear={filterFiscalYear}
+          setFilterFiscalYear={setFilterFiscalYear}
+          filterRegion={filterRegion}
+          setFilterRegion={setFilterRegion}
+          filterOrgType={filterOrgType}
+          setFilterOrgType={setFilterOrgType}
+          filterCampus={filterCampus}
+          setFilterCampus={setFilterCampus}
+          setCsvImportType={setCsvImportType}
+          exportToCSV={exportToCSV}
+          showPersonnelForm={showPersonnelForm}
+          setShowPersonnelForm={setShowPersonnelForm}
+          editingPersonnel={editingPersonnel}
+          setEditingPersonnel={setEditingPersonnel}
+          handleSavePersonnel={handleSavePersonnel}
+          handleDeletePersonnel={handleDeletePersonnel}
+        />
       );
     }
 
@@ -1130,20 +657,15 @@ function AppContent() {
           (project && project.project_name.toLowerCase().includes(term))
         );
         const matchesYear = filterFiscalYear ? ut.utilization_reporting_year === filterFiscalYear : true;
-        const matchesCampus = filterCampus ? project?.campus_id === filterCampus : true;
         
-        let matchesRegion = true;
-        if (filterRegion) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === project?.campus_id);
-          matchesRegion = org?.region === filterRegion;
-        }
-        let matchesOrgType = true;
-        if (filterOrgType) {
-          const org = ALL_ORGANIZATIONS.find(o => o.nameEn === project?.campus_id);
-          matchesOrgType = org?.type === filterOrgType;
-        }
+        const org = ALL_ORGANIZATIONS.find(o => o.id === project?.campus_id || o.nameEn === project?.campus_id || o.nameTh === project?.campus_id);
         
-        return matchesSearch && matchesYear && matchesCampus && matchesRegion && matchesOrgType;
+        const matchesCampus = filterCampus ? org?.nameEn === filterCampus : true;
+        const matchesRegion = filterRegion ? org?.region === filterRegion : true;
+        const matchesOrgType = filterOrgType ? org?.type === filterOrgType : true;
+        const matchesRole = user?.role !== 'Admin' ? org?.nameEn === user?.organization.nameEn : true;
+        
+        return matchesSearch && matchesYear && matchesCampus && matchesRegion && matchesOrgType && matchesRole;
       });
 
       return (
@@ -1151,65 +673,12 @@ function AppContent() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
              <h2 className="text-2xl font-bold text-gray-800">{t('utilization')}</h2>
              <div className="flex flex-wrap gap-2 md:gap-3">
-               {/* Fiscal Year Filter */}
-               <select
-                 value={filterFiscalYear}
-                 onChange={(e) => setFilterFiscalYear(e.target.value)}
-                 className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-               >
-                 <option value="">{t('allYears')}</option>
-                 {FISCAL_YEARS.map(year => (
-                   <option key={year} value={year}>{year}</option>
-                 ))}
-               </select>
-               {isAdmin && (
-                 <select
-                   value={filterRegion}
-                   onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allRegions')}</option>
-                   {REGIONS.map(region => (
-                     <option key={region} value={region}>
-                       {language === 'th' ? 
-                         (region === 'Northern Region' ? 'ภาคเหนือ' : 
-                          region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
-                          region === 'Central Region' ? 'ภาคกลาง' : 
-                          region === 'Southern Region' ? 'ภาคใต้' : region)
-                         : region}
-                     </option>
-                   ))}
-                 </select>
-               )}
-               {isAdmin && (
-                 <select
-                   value={filterOrgType}
-                   onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allTypes') || 'All Types'}</option>
-                   <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
-                   <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
-                   <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
-                 </select>
-               )}
-               {isAdmin && (
-                 <select
-                   value={filterCampus}
-                   onChange={(e) => setFilterCampus(e.target.value)}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                 >
-                   <option value="">{t('allOrgs')}</option>
-                   {ALL_ORGANIZATIONS
-                     .filter(org => !filterRegion || org.region === filterRegion)
-                     .filter(org => !filterOrgType || org.type === filterOrgType)
-                     .map(org => (
-                     <option key={org.id} value={org.nameEn}>
-                       {language === 'th' ? org.nameTh : org.nameEn}
-                     </option>
-                   ))}
-                 </select>
-               )}
+               <FilterBar 
+                 filterFiscalYear={filterFiscalYear} setFilterFiscalYear={setFilterFiscalYear}
+                 filterRegion={filterRegion} setFilterRegion={setFilterRegion}
+                 filterOrgType={filterOrgType} setFilterOrgType={setFilterOrgType}
+                 filterCampus={filterCampus} setFilterCampus={setFilterCampus}
+               />
                <button 
                  onClick={() => {
                    const exportData = filteredUtilizations.map(util => {
@@ -1258,7 +727,7 @@ function AppContent() {
             </div>
           </div>
 
-          <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
+          <div className="bg-white shadow-md rounded-xl overflow-x-auto border border-gray-100">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -1284,6 +753,7 @@ function AppContent() {
                               <span 
                                 className="text-gray-900 font-medium hover:text-blue-600 cursor-pointer"
                                 onClick={() => {
+                                  setPreviousTab(activeTab);
                                   setActiveTab('projects');
                                   setSelectedProject(project);
                                 }}
@@ -1317,6 +787,13 @@ function AppContent() {
                               >
                                 <span className="material-icons text-lg">edit</span>
                               </button>
+                              <button 
+                                onClick={() => handleDeleteUtilization(ut)}
+                                className="text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-full p-2"
+                                title={t('delete')}
+                              >
+                                <span className="material-icons text-lg">delete</span>
+                              </button>
                           </div>
                         </td>
                       </tr>
@@ -1342,9 +819,11 @@ function AppContent() {
          return (
            <AssetForm 
              type={showAssetFormType} 
-             onCancel={() => setShowAssetFormType(null)}
+             onCancel={() => { setShowAssetFormType(null); setEditingMOU(null); setEditingIP(null); }}
              onSaveMOU={handleSaveMOU}
              onSaveIP={handleSaveIP}
+             initialMOU={editingMOU}
+             initialIP={editingIP}
            />
          );
        }
@@ -1352,29 +831,29 @@ function AppContent() {
        // Filter logic
        const filteredMOUs = mous.filter(m => {
          if (filterFiscalYear && m.fiscal_year !== filterFiscalYear) return false;
-         if (filterCampus && m.campus_id !== filterCampus) return false;
-         if (filterRegion) {
-           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === m.campus_id);
-           if (!org || org.region !== filterRegion) return false;
-         }
-         if (filterOrgType) {
-           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === m.campus_id);
-           if (!org || org.type !== filterOrgType) return false;
-         }
+         
+         const org = ALL_ORGANIZATIONS.find(o => o.id === m.campus_id || o.nameEn === m.campus_id || o.nameTh === m.campus_id);
+         
+         if (filterCampus && org?.nameEn !== filterCampus) return false;
+         if (filterRegion && org?.region !== filterRegion) return false;
+         if (filterOrgType && org?.type !== filterOrgType) return false;
+         
+         if (user?.role !== 'Admin' && org?.nameEn !== user?.organization.nameEn) return false;
+         
          return true;
        });
        
        const filteredIPs = ips.filter(i => {
          if (filterFiscalYear && i.fiscal_year !== filterFiscalYear) return false;
-         if (filterCampus && i.campus_id !== filterCampus) return false;
-         if (filterRegion) {
-           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === i.campus_id);
-           if (!org || org.region !== filterRegion) return false;
-         }
-         if (filterOrgType) {
-           const org = ALL_ORGANIZATIONS.find(o => o.nameEn === i.campus_id);
-           if (!org || org.type !== filterOrgType) return false;
-         }
+         
+         const org = ALL_ORGANIZATIONS.find(o => o.id === i.campus_id || o.nameEn === i.campus_id || o.nameTh === i.campus_id);
+         
+         if (filterCampus && org?.nameEn !== filterCampus) return false;
+         if (filterRegion && org?.region !== filterRegion) return false;
+         if (filterOrgType && org?.type !== filterOrgType) return false;
+         
+         if (user?.role !== 'Admin' && org?.nameEn !== user?.organization.nameEn) return false;
+         
          return true;
        });
 
@@ -1383,65 +862,12 @@ function AppContent() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <h2 className="text-2xl font-bold text-gray-800">{t('ip_mou')}</h2>
               <div className="flex flex-wrap gap-2 md:gap-3">
-                 {/* Fiscal Year Filter */}
-                 <select
-                   value={filterFiscalYear}
-                   onChange={(e) => setFilterFiscalYear(e.target.value)}
-                   className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500"
-                 >
-                   <option value="">{t('allYears')}</option>
-                   {FISCAL_YEARS.map(year => (
-                     <option key={year} value={year}>{year}</option>
-                   ))}
-                 </select>
-                 {isAdmin && (
-                   <select
-                     value={filterRegion}
-                     onChange={(e) => { setFilterRegion(e.target.value); setFilterCampus(''); }}
-                     className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                   >
-                     <option value="">{t('allRegions')}</option>
-                     {REGIONS.map(region => (
-                       <option key={region} value={region}>
-                         {language === 'th' ? 
-                           (region === 'Northern Region' ? 'ภาคเหนือ' : 
-                            region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
-                            region === 'Central Region' ? 'ภาคกลาง' : 
-                            region === 'Southern Region' ? 'ภาคใต้' : region)
-                           : region}
-                       </option>
-                     ))}
-                   </select>
-                 )}
-                 {isAdmin && (
-                   <select
-                     value={filterOrgType}
-                     onChange={(e) => { setFilterOrgType(e.target.value); setFilterCampus(''); }}
-                     className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                   >
-                     <option value="">{t('allTypes') || 'All Types'}</option>
-                     <option value={OrganizationType.Campus}>{t('typeCampus')}</option>
-                     <option value={OrganizationType.SportsSchool}>{t('typeSchool')}</option>
-                     <option value={OrganizationType.OfficePresident}>{t('typeOffice')}</option>
-                   </select>
-                 )}
-                 {isAdmin && (
-                   <select
-                     value={filterCampus}
-                     onChange={(e) => setFilterCampus(e.target.value)}
-                     className="bg-white border border-gray-200 text-gray-700 px-3 py-2.5 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-tnsu-green-500 max-w-[200px] truncate"
-                   >
-                     <option value="">{t('allOrgs')}</option>
-                     {ALL_ORGANIZATIONS
-                       .filter(org => !filterRegion || org.region === filterRegion)
-                       .filter(org => !filterOrgType || org.type === filterOrgType)
-                       .map(org => (
-                       <option key={org.id} value={org.nameEn}>
-                         {language === 'th' ? org.nameTh : org.nameEn}
-                       </option>
-                     ))}
-                   </select>
-                 )}
+                 <FilterBar 
+                   filterFiscalYear={filterFiscalYear} setFilterFiscalYear={setFilterFiscalYear}
+                   filterRegion={filterRegion} setFilterRegion={setFilterRegion}
+                   filterOrgType={filterOrgType} setFilterOrgType={setFilterOrgType}
+                   filterCampus={filterCampus} setFilterCampus={setFilterCampus}
+                 />
                  <div className="flex flex-wrap gap-2 border-r border-gray-300 pr-3 mr-1">
                     <button 
                       onClick={() => exportToCSV(filteredMOUs, 'mou', `mou_${new Date().toISOString().split('T')[0]}`)}
@@ -1499,14 +925,16 @@ function AppContent() {
                  <span className="material-icons mr-2">handshake</span>
                  {t('mou')}
                </h3>
-               <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
+               <div className="bg-white shadow-md rounded-xl overflow-x-auto border border-gray-100">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-purple-50">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">{t('fiscalYear')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">{t('externalOrg')}</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">{t('campusOrg')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">{t('signDate')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">{t('scope')}</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-purple-800 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1514,11 +942,31 @@ function AppContent() {
                       <tr key={`${m.id}_${index}`} className="hover:bg-purple-50/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-purple-700">{m.fiscal_year}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{m.external_org_name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getOrgName(m.campus_id)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{m.sign_date}</td>
                         <td className="px-6 py-4 text-sm text-gray-600">{m.scope}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button 
+                            onClick={() => {
+                              setEditingMOU(m);
+                              setShowAssetFormType('mou');
+                            }}
+                            className="text-gray-400 hover:text-purple-600 transition-colors bg-white hover:bg-purple-50 rounded-full p-2"
+                            title={t('edit')}
+                          >
+                            <span className="material-icons text-lg">edit</span>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteMOU(m)}
+                            className="text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-full p-2"
+                            title={t('delete')}
+                          >
+                            <span className="material-icons text-lg">delete</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
-                    {mous.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-sm text-gray-400">No MOU records found.</td></tr>}
+                    {mous.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-sm text-gray-400">No MOU records found.</td></tr>}
                   </tbody>
                 </table>
                </div>
@@ -1530,15 +978,17 @@ function AppContent() {
                  <span className="material-icons mr-2">lightbulb</span>
                  {t('ip')}
                </h3>
-               <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-100">
+               <div className="bg-white shadow-md rounded-xl overflow-x-auto border border-gray-100">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-pink-50">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-pink-800 uppercase tracking-wider">{t('fiscalYear')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-pink-800 uppercase tracking-wider">{t('workName')}</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-pink-800 uppercase tracking-wider">{t('campusOrg')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-pink-800 uppercase tracking-wider">{t('ipType')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-pink-800 uppercase tracking-wider">{t('regNo')}</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-pink-800 uppercase tracking-wider">{t('regDate')}</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-pink-800 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -1546,14 +996,34 @@ function AppContent() {
                       <tr key={`${ip.id}_${index}`} className="hover:bg-pink-50/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-pink-700">{ip.fiscal_year}</td>
                         <td className="px-6 py-4 text-sm font-medium text-gray-900">{ip.work_name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getOrgName(ip.campus_id)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                            <span className="bg-pink-100 text-pink-800 px-2 py-1 rounded text-xs font-medium">{ip.ip_type}</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600 font-mono">{ip.request_number}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{ip.registration_date}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button 
+                            onClick={() => {
+                              setEditingIP(ip);
+                              setShowAssetFormType('ip');
+                            }}
+                            className="text-gray-400 hover:text-pink-600 transition-colors bg-white hover:bg-pink-50 rounded-full p-2"
+                            title={t('edit')}
+                          >
+                            <span className="material-icons text-lg">edit</span>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteIP(ip)}
+                            className="text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-full p-2"
+                            title={t('delete')}
+                          >
+                            <span className="material-icons text-lg">delete</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
-                    {ips.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-sm text-gray-400">No Intellectual Property records found.</td></tr>}
+                    {ips.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-sm text-gray-400">No Intellectual Property records found.</td></tr>}
                   </tbody>
                 </table>
                </div>
@@ -1593,7 +1063,9 @@ function AppContent() {
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSelectedProject(null); setShowAssetFormType(null); setShowUserForm(false); }}>
+    <>
+      <Toaster position="top-right" richColors />
+      <Layout activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSelectedProject(null); setShowAssetFormType(null); setShowUserForm(false); }}>
       {appError && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg shadow-sm">
           <div className="flex items-start">
@@ -1633,7 +1105,7 @@ function AppContent() {
                     onClick={() => {
                       const rules = `rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function isAuthenticated() { return request.auth != null; }\n    match /{document=**} { allow read, write: if isAuthenticated(); }\n  }\n}`;
                       navigator.clipboard.writeText(rules);
-                      alert('Rules copied to clipboard! Paste them in the Firebase Console -> Firestore Database -> Rules tab.');
+                      toast.success('Rules copied to clipboard! Paste them in the Firebase Console -> Firestore Database -> Rules tab.');
                     }}
                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                   >
@@ -1645,7 +1117,7 @@ function AppContent() {
             <div className="ml-auto pl-3">
               <div className="-mx-1.5 -my-1.5">
                 <button
-                  onClick={() => setAppError(null)}
+                  onClick={clearError}
                   className="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50"
                 >
                   <span className="sr-only">Dismiss</span>
@@ -1657,6 +1129,27 @@ function AppContent() {
         </div>
       )}
       {renderContent()}
+      
+      {!isLoading && activeTab !== 'dashboard' && (
+        projects.length >= dataLimit || 
+        publications.length >= dataLimit || 
+        utilizations.length >= dataLimit || 
+        personnel.length >= dataLimit || 
+        mous.length >= dataLimit || 
+        ips.length >= dataLimit || 
+        users.length >= dataLimit
+      ) && (
+        <div className="mt-8 flex justify-center pb-8">
+          <button 
+            onClick={loadMoreData}
+            className="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2"
+          >
+            <span className="material-icons text-sm">expand_more</span>
+            {t('loadMore') || 'Load More Data'} ({dataLimit})
+          </button>
+        </div>
+      )}
+
       {csvImportType && (
         <CSVImportModal 
           type={csvImportType} 
@@ -1665,6 +1158,7 @@ function AppContent() {
         />
       )}
     </Layout>
+    </>
   );
 }
 

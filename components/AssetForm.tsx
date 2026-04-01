@@ -10,14 +10,16 @@ interface AssetFormProps {
   onSaveMOU?: (mou: MOU) => void;
   onSaveIP?: (ip: IntellectualProperty) => void;
   onCancel: () => void;
+  initialMOU?: MOU | null;
+  initialIP?: IntellectualProperty | null;
 }
 
-const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCancel }) => {
+const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCancel, initialMOU, initialIP }) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
 
   // MOU State
-  const [mouData, setMouData] = useState<Partial<MOU>>({
+  const [mouData, setMouData] = useState<Partial<MOU>>(initialMOU || {
     fiscal_year: FiscalYear.Y2568,
     sign_date: new Date().toISOString().split('T')[0],
     campus_id: user?.organization.id || ALL_ORGANIZATIONS[0].id, // Default to user's org
@@ -25,7 +27,7 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
   });
 
   // IP State
-  const [ipData, setIpData] = useState<Partial<IntellectualProperty>>({
+  const [ipData, setIpData] = useState<Partial<IntellectualProperty>>(initialIP || {
     fiscal_year: FiscalYear.Y2568,
     ip_type: IPType.Patent,
     registration_date: new Date().toISOString().split('T')[0],
@@ -33,19 +35,24 @@ const AssetForm: React.FC<AssetFormProps> = ({ type, onSaveMOU, onSaveIP, onCanc
     approval_status: ApprovalStatus.Draft
   });
 
+  React.useEffect(() => {
+    if (initialMOU) setMouData(initialMOU);
+    if (initialIP) setIpData(initialIP);
+  }, [initialMOU, initialIP]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (type === 'mou' && onSaveMOU) {
       const newMOU: MOU = {
         ...mouData as MOU,
-        id: `mou_${Math.random().toString(36).substr(2, 6)}`,
+        id: initialMOU?.id || `mou_${Math.random().toString(36).substr(2, 6)}`,
         approval_status: mouData.approval_status || ApprovalStatus.Draft
       };
       onSaveMOU(newMOU);
     } else if (type === 'ip' && onSaveIP) {
        const newIP: IntellectualProperty = {
          ...ipData as IntellectualProperty,
-         id: `ip_${Math.random().toString(36).substr(2, 6)}`,
+         id: initialIP?.id || `ip_${Math.random().toString(36).substr(2, 6)}`,
          approval_status: ipData.approval_status || ApprovalStatus.Draft
        };
        onSaveIP(newIP);

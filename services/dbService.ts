@@ -1,7 +1,12 @@
 
 import { db, auth } from "../firebaseConfig";
 import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, setDoc, doc } from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword, updateEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword, updateEmail, getAuth as getSecondaryAuth } from "firebase/auth";
+import { initializeApp } from "firebase/app";
+import { firebaseConfig } from "../firebaseConfig";
+
+const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = getSecondaryAuth(secondaryApp);
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog, FacultyLecturerCount } from "../types";
 import { initialUsers } from "./mockData";
 
@@ -250,7 +255,12 @@ export const getPublicationsFromDB = async (user?: User | null, userProjects?: P
     
     if (user && user.role !== 'Admin' && userProjects) {
       const projectIds = new Set(userProjects.map(p => p.project_id));
-      return allPubs.filter(pub => projectIds.has(pub.ref_project_id));
+      return allPubs.filter(pub => {
+        if (pub.ref_project_id) {
+          return projectIds.has(pub.ref_project_id);
+        }
+        return pub.campus_id === user.organization.nameEn;
+      });
     }
     
     return allPubs;
@@ -282,6 +292,20 @@ export const updatePublicationInDB = async (pub: PublicationOutput): Promise<voi
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, PUBLICATIONS_COL);
+    throw error;
+  }
+};
+
+export const deletePublicationFromDB = async (outputId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, PUBLICATIONS_COL), where("output_id", "==", outputId), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await deleteDoc(docRef);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, PUBLICATIONS_COL);
     throw error;
   }
 };
@@ -334,6 +358,20 @@ export const updateUtilizationInDB = async (util: Utilization): Promise<void> =>
   }
 };
 
+export const deleteUtilizationFromDB = async (utilId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, UTILIZATIONS_COL), where("id", "==", utilId), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await deleteDoc(docRef);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, UTILIZATIONS_COL);
+    throw error;
+  }
+};
+
 // --- Personnel Operations ---
 
 export const getPersonnelFromDB = async (user?: User | null): Promise<PersonnelDevelopment[]> => {
@@ -378,6 +416,20 @@ export const updatePersonnelInDB = async (personnel: PersonnelDevelopment): Prom
   }
 };
 
+export const deletePersonnelFromDB = async (personnelId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, PERSONNEL_COL), where("id", "==", personnelId), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = querySnapshot.docs[0].ref;
+      await deleteDoc(docRef);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, PERSONNEL_COL);
+    throw error;
+  }
+};
+
 // --- MOU Operations ---
 
 export const getMOUsFromDB = async (user?: User | null): Promise<MOU[]> => {
@@ -403,6 +455,34 @@ export const addMOUToDB = async (mou: MOU): Promise<void> => {
   }
 };
 
+export const updateMOUInDB = async (mou: MOU): Promise<void> => {
+  try {
+    const q = query(collection(db, MOUS_COL), where("id", "==", mou.id));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = doc(db, MOUS_COL, querySnapshot.docs[0].id);
+      await updateDoc(docRef, { ...mou });
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, MOUS_COL);
+    throw error;
+  }
+};
+
+export const deleteMOUFromDB = async (mouId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, MOUS_COL), where("id", "==", mouId));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = doc(db, MOUS_COL, querySnapshot.docs[0].id);
+      await deleteDoc(docRef);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, MOUS_COL);
+    throw error;
+  }
+};
+
 // --- IP Operations ---
 
 export const getIPsFromDB = async (user?: User | null): Promise<IntellectualProperty[]> => {
@@ -424,6 +504,34 @@ export const addIPToDB = async (ip: IntellectualProperty): Promise<void> => {
     await addDoc(collection(db, IPS_COL), ip);
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, IPS_COL);
+    throw error;
+  }
+};
+
+export const updateIPInDB = async (ip: IntellectualProperty): Promise<void> => {
+  try {
+    const q = query(collection(db, IPS_COL), where("id", "==", ip.id));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = doc(db, IPS_COL, querySnapshot.docs[0].id);
+      await updateDoc(docRef, { ...ip });
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, IPS_COL);
+    throw error;
+  }
+};
+
+export const deleteIPFromDB = async (ipId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, IPS_COL), where("id", "==", ipId));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docRef = doc(db, IPS_COL, querySnapshot.docs[0].id);
+      await deleteDoc(docRef);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, IPS_COL);
     throw error;
   }
 };
@@ -467,11 +575,6 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 };
 
 export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
-  // Check if we are in Legacy Mode (Unauthenticated)
-  if (!auth.currentUser) {
-      throw new Error("Write Access Denied: You are logged in via Legacy Mode. Please contact support to sync your account with Firebase Auth.");
-  }
-
   // Check for existing username in Firestore
   const q = query(collection(db, USERS_COL), where("username", "==", user.username));
   let snapshot;
@@ -486,16 +589,35 @@ export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
      throw new Error("Username already exists");
   }
 
+  if (!user.password) {
+    throw new Error("Password is required to create a user");
+  }
+
   try {
-    await addDoc(collection(db, USERS_COL), user);
-  } catch (error) {
+    // Create user in Firebase Auth using secondary app to avoid logging out current user
+    const email = `${user.username}@tnsu.local`;
+    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, user.password);
+    await signOut(secondaryAuth);
+
+    const newUser = {
+      ...user,
+      id: userCredential.user.uid,
+      authEmail: email
+    };
+
+    // Use setDoc instead of addDoc so the document ID matches the Auth UID
+    await setDoc(doc(db, USERS_COL, newUser.id), newUser);
+  } catch (error: any) {
+    if (error.code === 'auth/email-already-in-use') {
+      throw new Error("Email already in use");
+    }
     handleFirestoreError(error, OperationType.CREATE, USERS_COL);
     return;
   }
   
   // Log the creation
   if (actor) {
-    await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role}). Note: Auth account must be created separately.`);
+    await logUserActivity(actor, 'CREATE', 'User', `Created user: ${user.username} (${user.role})`);
   }
 };
 
@@ -557,155 +679,68 @@ export const deleteUserFromDB = async (id: string, actor?: User): Promise<void> 
 // --- AUTHENTICATION SERVICE (HYBRID) ---
 
 export const loginWithFirebase = async (identifier: string, pass: string): Promise<User | null> => {
-  let email = identifier;
   const isEmail = identifier.includes("@");
-
-  // 1. Resolve Identifier (Username or Email) to Auth Email
-  try {
-      // Try Firestore lookup by username first
-      let q = query(collection(db, USERS_COL), where("username", "==", identifier), limit(1));
-      let snapshot = await getDocs(q);
-      
-      if (snapshot.empty && isEmail) {
-          // If not found by username, try by email
-          q = query(collection(db, USERS_COL), where("email", "==", identifier), limit(1));
-          snapshot = await getDocs(q);
-          
-          if (snapshot.empty) {
-              // Try by authEmail
-              q = query(collection(db, USERS_COL), where("authEmail", "==", identifier), limit(1));
-              snapshot = await getDocs(q);
-          }
-      }
-      
-      if (!snapshot.empty) {
-        const userData = snapshot.docs[0].data();
-        email = userData.authEmail || userData.email;
-      } else if (!isEmail) {
-        // If query succeeds but no user found, throw error to trigger fallback
-        throw new Error("User not found in DB");
-      }
-  } catch (err: any) {
-      // Handle "Missing or insufficient permissions" or User not found
-      // console.warn("DB lookup failed (permission or missing). Switching to Mock Data Fallback.");
-      
-      // Fallback: Check Mock Data
-      // This is crucial for initial login if rules block unauthenticated reads
-      const mockUser = initialUsers.find(u => u.username === identifier || u.email === identifier || u.authEmail === identifier);
-      if (mockUser) {
-          // console.log("Resolved identifier via Mock Data");
-          email = mockUser.authEmail || mockUser.email;
-      } else if (!isEmail) {
-          // If we can't resolve the username, and it's not an email, we fail.
-          // The user must use Email to login if not in mock data and DB is locked.
-          // We can't proceed without an email
-          throw new Error("Could not resolve username. Please login with your email address.");
-      }
-  }
+  const email = isEmail ? identifier : `${identifier}@tnsu.local`;
 
   try {
-    // 2. Attempt Firebase Auth Login
+    // Attempt Firebase Auth Login
     const userCredential = await signInWithEmailAndPassword(auth, email, pass);
     const firebaseUser = userCredential.user;
 
-    // 3. Fetch User Profile from Firestore
+    // Fetch User Profile from Firestore
     let userProfile = await getUserByEmail(firebaseUser.email!);
-
-    // FIX START: If Auth succeeds but Firestore profile is missing (e.g. Permission denied, or DB empty),
-    // we fallback to Mock Data so the hardcoded Admin can still enter.
-    if (!userProfile) {
-         // console.warn("Auth successful, but Firestore profile not found (or locked). Checking Mock Data for fallback profile...");
-         const mockUser = initialUsers.find(u => u.email === email || u.authEmail === email);
-         if (mockUser) {
-             // console.log("Found profile in Mock Data. Using Mock Profile.");
-             userProfile = mockUser;
-             
-             // Attempt to SYNC this profile to Firestore so rules work next time
-             try {
-                 await setDoc(doc(db, USERS_COL, firebaseUser.uid), {
-                     ...mockUser,
-                     id: firebaseUser.uid // Use Auth UID as Document ID
-                 });
-                 console.log("Synced mock profile to Firestore for authenticated user.");
-             } catch (syncErr) {
-                 console.warn("Failed to sync profile to Firestore (likely permission denied):", syncErr);
-             }
-         }
-    }
-    // FIX END
 
     if (userProfile) {
        await logUserActivity(userProfile, 'LOGIN', 'System', 'User logged in via Firebase Auth');
        return userProfile;
     } else {
-       console.error("Login successful but no user profile found in Firestore or Mock Data.");
+       console.error("Login successful but no user profile found in Firestore.");
        await signOut(auth); 
        return null;
     }
   } catch (error: any) {
-    // 4. MIGRATION / FALLBACK LOGIC:
-    const isAuthError = 
-        error.code === 'auth/user-not-found' || 
-        error.code === 'auth/invalid-credential' || 
-        error.code === 'auth/invalid-login-credentials' || 
-        error.code === 'auth/wrong-password';
-
-    if (isAuthError) {
-        // Suppress error log for expected auth failures that we handle via fallback
-        console.warn(`Firebase Auth failed (${error.code}). Attempting legacy fallback...`);
-    } else {
-        console.error("Firebase Auth failed:", error);
-    }
-
-    // If Auth fails, try to validate against our Legacy/Mock system
-    if (isAuthError) {
-        const userProfile = await authenticateUserLegacy(identifier, pass);
-        if (userProfile) {
-            try {
-                // Try to Auto-Register in Firebase Auth to enable persistence for next time
-                console.log("Attempting to migrate legacy user to Firebase Auth...");
-                let newCred;
-                try {
-                    newCred = await createUserWithEmailAndPassword(auth, email, pass);
-                } catch (createErr: any) {
-                    if (createErr.code === 'auth/email-already-in-use' || createErr.code === 'auth/invalid-email') {
-                        console.warn(`Email ${email} failed (${createErr.code}). Generating unique fallback email for migration...`);
-                        const fallbackEmail = `${userProfile.username}_${Date.now()}@demo.local`;
-                        newCred = await createUserWithEmailAndPassword(auth, fallbackEmail, pass);
-                        userProfile.authEmail = fallbackEmail; // Update profile authEmail to match Auth
-                    } else {
-                        throw createErr;
-                    }
-                }
-                
-                const oldId = userProfile.id;
-                userProfile.id = newCred.user.uid; // Update ID to match Auth UID
-                
-                // CRITICAL FIX: Create Firestore Document for the new Auth User
-                // This ensures security rules (which check request.auth.uid) can find the user's role
-                await setDoc(doc(db, USERS_COL, newCred.user.uid), userProfile);
-                
-                // Delete the old legacy document if the ID changed
-                if (oldId && oldId !== newCred.user.uid) {
-                    try {
-                        await deleteDoc(doc(db, USERS_COL, oldId));
-                    } catch (delErr) {
-                        console.warn("Failed to delete old legacy document:", delErr);
-                    }
-                }
-                
-                await logUserActivity(userProfile, 'UPDATE', 'System', 'Auto-migrated user to Firebase Auth & Firestore');
-            } catch (createErr: any) {
-                // If create fails (e.g. email exists but password was wrong previously), 
-                // we just ignore it and let them in via Legacy mode.
-                console.warn("Auto-migration skipped (User might exist or other error):", createErr.code);
-            }
-            // Return profile to allow login (Emergency Entry)
-            return userProfile; 
+    // If Auth fails, check if it's an initial user that needs to be migrated
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+      const mockUser = initialUsers.find(u => (u.username === identifier || u.email === identifier || u.authEmail === identifier) && u.password === pass);
+      
+      if (mockUser) {
+        console.log("Migrating initial user to Firebase Auth...");
+        try {
+          // Create user in Firebase Auth
+          const mockEmail = mockUser.email || `${mockUser.username}@tnsu.local`;
+          const newUserCredential = await createUserWithEmailAndPassword(auth, mockEmail, pass);
+          
+          const newUser = {
+            ...mockUser,
+            id: newUserCredential.user.uid,
+            authEmail: mockEmail
+          };
+          
+          // Save to Firestore
+          await setDoc(doc(db, USERS_COL, newUser.id), newUser);
+          
+          await logUserActivity(newUser, 'LOGIN', 'System', 'User auto-migrated and logged in');
+          return newUser;
+        } catch (migrationError: any) {
+          if (migrationError.code === 'auth/email-already-in-use') {
+            throw new Error("Invalid username or password");
+          }
+          console.error("Failed to migrate initial user:", migrationError);
+          throw new Error("Failed to initialize user account.");
         }
+      }
     }
-    
-    return null;
+
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error("Too many failed login attempts. Please try again later.");
+    }
+    if (error.code === 'auth/user-disabled') {
+      throw new Error("This account has been disabled. Please contact support.");
+    }
+    if (error.code !== 'auth/invalid-credential' && error.code !== 'auth/user-not-found' && error.code !== 'auth/invalid-login-credentials') {
+      console.error("Firebase Auth failed:", error);
+    }
+    throw new Error("Invalid username or password");
   }
 };
 
@@ -714,48 +749,6 @@ export const logoutUser = async (): Promise<void> => {
     await signOut(auth);
   } catch (error) {
     console.error("Logout Error:", error);
-  }
-};
-
-// Legacy/Fallback Authentication
-export const authenticateUserLegacy = async (identifier: string, password: string): Promise<User | null> => {
-  try {
-    // 1. Try to query DB (might fail due to permissions)
-    try {
-        let q = query(collection(db, USERS_COL), where("username", "==", identifier), limit(1));
-        let snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-           q = query(collection(db, USERS_COL), where("email", "==", identifier), limit(1));
-           snapshot = await getDocs(q);
-           
-           if (snapshot.empty) {
-               q = query(collection(db, USERS_COL), where("authEmail", "==", identifier), limit(1));
-               snapshot = await getDocs(q);
-           }
-        }
-        
-        if (!snapshot.empty) {
-           const user = snapshot.docs[0].data() as User;
-           if (user.password === password) {
-             return user;
-           }
-        }
-    } catch (dbErr) {
-        // Silently swallow permission errors here, as we have a mock fallback
-        // console.warn("Legacy DB check failed (permissions):", dbErr);
-    }
-
-    // 2. Fallback to Mock Data (Safe fallback for Admin/Staff seed)
-    const mockUser = initialUsers.find(u => (u.username === identifier || u.email === identifier || u.authEmail === identifier) && u.password === password);
-    if (mockUser) {
-        return mockUser;
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Legacy Auth Error:", error);
-    return null;
   }
 };
 
@@ -931,7 +924,31 @@ export const seedDatabase = async (
        const q = query(collection(db, USERS_COL), where("username", "==", u.username));
        const snapshot = await getDocs(q);
        if (snapshot.empty) {
-         promises.push(addDoc(collection(db, USERS_COL), u));
+         // Create Firebase Auth account
+         const email = u.email || `${u.username}@tnsu.local`;
+         if (!u.password) {
+           console.warn(`Skipping user ${u.username} during seed: missing password`);
+           continue;
+         }
+         try {
+           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, u.password);
+           await signOut(secondaryAuth);
+           const newUser = {
+             ...u,
+             id: userCredential.user.uid,
+             authEmail: email
+           };
+           promises.push(setDoc(doc(db, USERS_COL, newUser.id), newUser));
+         } catch (authError: any) {
+           if (authError.code === 'auth/email-already-in-use') {
+             console.warn(`Auth user ${email} already exists, skipping creation.`);
+             // Still add to Firestore if missing
+             const newUser = { ...u, authEmail: email };
+             promises.push(addDoc(collection(db, USERS_COL), newUser));
+           } else {
+             console.error(`Failed to create auth user ${email}:`, authError);
+           }
+         }
        }
     }
 
