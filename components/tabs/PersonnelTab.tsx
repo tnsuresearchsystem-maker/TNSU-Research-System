@@ -44,6 +44,7 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
   
   const [showFacultyModal, setShowFacultyModal] = useState(false);
   const [viewingPersonnel, setViewingPersonnel] = useState<PersonnelDevelopment | null>(null);
+  const [viewingStaffProfile, setViewingStaffProfile] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const getOrgName = (id: string) => {
@@ -165,7 +166,14 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-700">
                   <span className="bg-indigo-50 px-2 py-1 rounded border border-indigo-100">{pd.fiscal_year}</span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pd.staff_name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setViewingStaffProfile(pd.staff_name); }}
+                    className="text-indigo-600 hover:text-indigo-800 hover:underline text-left font-medium transition-colors"
+                  >
+                    {pd.staff_name}
+                  </button>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getFacultyName(pd.faculty)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getOrgName(pd.organization_name)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={pd.course_name}>{pd.course_name}</td>
@@ -284,6 +292,75 @@ const PersonnelTab: React.FC<PersonnelTabProps> = ({
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
               <button 
                 onClick={() => setViewingPersonnel(null)}
+                className="px-5 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                {t('close') || 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Staff Profile Modal */}
+      {viewingStaffProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-800 flex items-center">
+                <span className="material-icons mr-2 text-indigo-600">badge</span>
+                {t('personnelDetails') || 'Personnel Profile'} - {viewingStaffProfile}
+              </h3>
+              <button 
+                onClick={() => setViewingStaffProfile(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <span className="material-icons">close</span>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4">Training History</h4>
+              <div className="space-y-4">
+                {personnel.filter(p => p.staff_name === viewingStaffProfile).map((pd, idx) => (
+                  <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h5 className="font-bold text-lg text-gray-900">{pd.course_name}</h5>
+                      <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-sm font-bold border border-indigo-100">
+                        {pd.fiscal_year}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium text-gray-500">Type:</span> {pd.development_type}
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-500">Date:</span> {pd.activity_date} ({pd.duration_hours} Hrs)
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-500">Organization:</span> {getOrgName(pd.organization_name)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-500">Faculty:</span> {getFacultyName(pd.faculty)}
+                      </div>
+                    </div>
+                    {pd.certificate_url && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <a 
+                          href={pd.certificate_url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium text-sm"
+                        >
+                          <span className="material-icons text-sm mr-1">picture_as_pdf</span>
+                          View Certificate
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button 
+                onClick={() => setViewingStaffProfile(null)}
                 className="px-5 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
               >
                 {t('close') || 'Close'}

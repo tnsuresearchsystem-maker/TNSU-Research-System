@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { User, SystemLog, OrganizationType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ALL_ORGANIZATIONS } from '../constants';
-import { getSystemLogs, sendUserPasswordResetEmail } from '../services/dbService';
+import { ALL_ORGANIZATIONS, REGIONS } from '../constants';
+import { getSystemLogs, sendUserPasswordResetEmail, clearAllUsersExceptCurrent } from '../services/dbService';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import CSVImportModal from './CSVImportModal';
 import { exportToCSV } from '../services/csvService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UserManagementProps {
   users: User[];
@@ -18,10 +19,14 @@ interface UserManagementProps {
 
 const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete, onBulkAdd }) => {
   const { t, language } = useLanguage();
+  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL'); // New Filter State
+  const [filterRegion, setFilterRegion] = useState<string>('ALL');
+  const [filterOrgId, setFilterOrgId] = useState<string>('ALL');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   
   // Pagination State for Logs
   const [logs, setLogs] = useState<SystemLog[]>([]);
@@ -89,8 +94,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
       (language === 'th' ? u.organization.nameTh : u.organization.nameEn).toLowerCase().includes(search.toLowerCase());
     
     const matchesType = filterType === 'ALL' || u.organization.type === filterType;
+    const matchesRegion = filterRegion === 'ALL' || u.organization.region === filterRegion;
+    const matchesOrgId = filterOrgId === 'ALL' || u.organization.nameEn === filterOrgId;
 
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && matchesRegion && matchesOrgId;
   });
 
   const findOrganization = (idOrName: string) => {
@@ -132,6 +139,23 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
     }
   };
 
+  const handleClearAllUsers = async () => {
+    if (!currentUser) return;
+    if (confirm(language === 'th' ? 'คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "ทั้งหมด" ยกเว้นบัญชีของคุณเอง? การกระทำนี้ไม่สามารถย้อนกลับได้' : 'Are you sure you want to delete ALL users except your own account? This action cannot be undone.')) {
+      setIsClearing(true);
+      try {
+        const result = await clearAllUsersExceptCurrent(currentUser.id, currentUser);
+        alert(language === 'th' ? `ลบผู้ใช้สำเร็จ ${result.deleted} บัญชี (เก็บไว้ ${result.kept} บัญชี)` : `Successfully deleted ${result.deleted} users (kept ${result.kept}).`);
+        // We might need to refresh the page or rely on the parent component's snapshot listener
+        window.location.reload();
+      } catch (error) {
+        alert(language === 'th' ? 'เกิดข้อผิดพลาดในการลบผู้ใช้' : 'Error clearing users.');
+      } finally {
+        setIsClearing(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       {/* Tab Switcher */}
@@ -155,7 +179,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
       {activeTab === 'users' ? (
         <>
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-grow max-w-2xl">
+             <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-grow max-w-4xl">
                 {/* Search Box */}
                 <div className="relative flex-grow">
                   <input 
@@ -168,20 +192,64 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, o
                   <span className="material-icons absolute left-3 top-2.5 text-gray-400 text-lg">search</span>
                 </div>
 
+                {/* Region Filter */}
+                <select
+                  value={filterRegion}
+                  onChange={(e) => { setFilterRegion(e.target.value); setFilterOrgId('ALL'); }}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-700"
+                >
+                  <option value="ALL">{language === 'th' ? 'ทุกภูมิภาค' : 'All Regions'}</option>
+                  {REGIONS.map(region => (
+                    <option key={region} value={region}>
+                      {language === 'th' ? 
+                        (region === 'Northern Region' ? 'ภาคเหนือ' : 
+                         region === 'Northeastern Region' ? 'ภาคตะวันออกเฉียงเหนือ' : 
+                         region === 'Central Region' ? 'ภาคกลาง' : 
+                         region === 'Southern Region' ? 'ภาคใต้' : region) 
+                        : region}
+                    </option>
+                  ))}
+                </select>
+
                 {/* Filter Dropdown */}
                 <select
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
+                  onChange={(e) => { setFilterType(e.target.value); setFilterOrgId('ALL'); }}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-700"
                 >
-                  <option value="ALL">{language === 'th' ? 'ทั้งหมด (All)' : 'All Organizations'}</option>
-                  <option value={OrganizationType.Campus}>{language === 'th' ? 'วิทยาเขต (Campuses)' : 'Campuses'}</option>
-                  <option value={OrganizationType.SportsSchool}>{language === 'th' ? 'โรงเรียนกีฬา (Sports Schools)' : 'Sports Schools'}</option>
-                  <option value={OrganizationType.OfficePresident}>{language === 'th' ? 'สนง.อธิการบดี (Office)' : 'Office of President'}</option>
+                  <option value="ALL">{language === 'th' ? 'ทุกประเภท' : 'All Types'}</option>
+                  <option value={OrganizationType.Campus}>{language === 'th' ? 'วิทยาเขต' : 'Campuses'}</option>
+                  <option value={OrganizationType.SportsSchool}>{language === 'th' ? 'โรงเรียนกีฬา' : 'Sports Schools'}</option>
+                  <option value={OrganizationType.OfficePresident}>{language === 'th' ? 'สนง.อธิการบดี' : 'Office of President'}</option>
+                </select>
+
+                {/* Specific Org Filter */}
+                <select
+                  value={filterOrgId}
+                  onChange={(e) => setFilterOrgId(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-700 max-w-[200px] truncate"
+                >
+                  <option value="ALL">{language === 'th' ? 'ทุกหน่วยงาน' : 'All Organizations'}</option>
+                  {ALL_ORGANIZATIONS
+                    .filter(org => filterRegion === 'ALL' || org.region === filterRegion)
+                    .filter(org => filterType === 'ALL' || org.type === filterType)
+                    .map(org => (
+                    <option key={org.id} value={org.nameEn}>
+                      {language === 'th' ? org.nameTh : org.nameEn}
+                    </option>
+                  ))}
                 </select>
              </div>
              
              <div className="flex flex-wrap gap-2 md:gap-3">
+                <button 
+                  onClick={handleClearAllUsers}
+                  disabled={isClearing}
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-sm flex items-center transition-colors shadow-sm disabled:opacity-50"
+                >
+                  <span className="material-icons text-base mr-2">{isClearing ? 'hourglass_empty' : 'delete_sweep'}</span>
+                  <span className="hidden lg:inline">{language === 'th' ? 'ล้างผู้ใช้ทั้งหมด' : 'Clear All Users'}</span>
+                </button>
                 <button 
                   onClick={() => {
                     const mappedUsers = filteredUsers.map(u => ({

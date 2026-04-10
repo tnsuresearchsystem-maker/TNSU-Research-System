@@ -52,15 +52,15 @@ const PublicationForm: React.FC<PublicationFormProps> = ({ projects, onSave, onC
       alert(t('selectOrg'));
       return;
     }
-    const newPub: PublicationOutput = {
-      ...formData as PublicationOutput,
+    const newPub: any = {
+      ...formData,
       output_id: initialData?.output_id || `o_${Math.random().toString(36).substr(2, 6)}`,
       approval_status: formData.approval_status || ApprovalStatus.Draft
     };
     if (isIndependent) {
-      delete newPub.ref_project_id;
+      newPub.ref_project_id = null;
     }
-    onSave(newPub);
+    onSave(newPub as PublicationOutput);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

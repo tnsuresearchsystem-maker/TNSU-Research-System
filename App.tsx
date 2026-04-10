@@ -24,7 +24,7 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useAppData } from './hooks/useAppData';
 import { addProjectToDB, updateProjectInDB, deleteProjectFromDB, addPublicationToDB, updatePublicationInDB, deletePublicationFromDB, addUtilizationToDB, updateUtilizationInDB, deleteUtilizationFromDB, addPersonnelToDB, updatePersonnelInDB, deletePersonnelFromDB, addMOUToDB, updateMOUInDB, deleteMOUFromDB, addIPToDB, updateIPInDB, deleteIPFromDB, addUserToDB, updateUserInDB, deleteUserFromDB, seedDatabase, logUserActivity } from './services/dbService';
-import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers } from './services/mockData';
+import { initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs } from './services/mockData';
 import { CSVType, exportToCSV } from './services/csvService';
 import { ChangePasswordForm } from './components/ChangePasswordForm';
 
@@ -281,7 +281,7 @@ function AppContent() {
     if (confirm("This will add sample data to your Firestore database. Continue?")) {
       setIsSeeding(true);
       try {
-        await seedDatabase(initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs, initialUsers);
+        await seedDatabase(initialProjects, initialPublications, initialUtilizations, initialPersonnel, initialMOUs, initialIPs);
         if (user) {
            await logUserActivity(user, 'CREATE', 'System', 'Seeded initial database data');
         }

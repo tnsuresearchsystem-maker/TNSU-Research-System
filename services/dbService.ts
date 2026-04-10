@@ -1,6 +1,6 @@
 
 import { db, auth } from "../firebaseConfig";
-import { collection, getDocs, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, setDoc, doc } from "firebase/firestore";
+import { collection, getDocs, getDoc, addDoc, query, where, updateDoc, limit, deleteDoc, orderBy, startAfter, QueryDocumentSnapshot, DocumentData, setDoc, doc } from "firebase/firestore";
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword, updateEmail, getAuth as getSecondaryAuth } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "../firebaseConfig";
@@ -9,6 +9,19 @@ const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 const secondaryAuth = getSecondaryAuth(secondaryApp);
 import { ProjectMaster, PublicationOutput, Utilization, PersonnelDevelopment, MOU, IntellectualProperty, User, SystemLog, FacultyLecturerCount } from "../types";
 import { initialUsers } from "./mockData";
+
+// Utility to remove undefined values before saving to Firestore
+const sanitizeForFirestore = (obj: any): any => {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForFirestore(item));
+  }
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, sanitizeForFirestore(v)])
+  );
+};
 
 // Collection Names
 const PROJECTS_COL = "projects";
@@ -84,7 +97,7 @@ export async function safeGetDocs(q: any, path: string) {
 
 export async function safeAddDoc(col: any, data: any, path: string) {
   try {
-    return await addDoc(col, data);
+    return await addDoc(col, sanitizeForFirestore(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
     throw error; // Unreachable
@@ -93,7 +106,7 @@ export async function safeAddDoc(col: any, data: any, path: string) {
 
 export async function safeUpdateDoc(docRef: any, data: any, path: string) {
   try {
-    return await updateDoc(docRef, data);
+    return await updateDoc(docRef, sanitizeForFirestore(data));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
     throw error; // Unreachable
@@ -134,7 +147,7 @@ export const logUserActivity = async (
       target_module: target,
       details: details
     };
-    await addDoc(collection(db, LOGS_COL), logEntry);
+    await addDoc(collection(db, LOGS_COL), sanitizeForFirestore(logEntry));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, LOGS_COL);
   }
@@ -205,7 +218,7 @@ export const getProjectsFromDB = async (user?: User | null): Promise<ProjectMast
 
 export const addProjectToDB = async (project: ProjectMaster): Promise<void> => {
   try {
-    await addDoc(collection(db, PROJECTS_COL), project);
+    await addDoc(collection(db, PROJECTS_COL), sanitizeForFirestore(project));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, PROJECTS_COL);
     throw error;
@@ -219,7 +232,7 @@ export const updateProjectInDB = async (project: ProjectMaster): Promise<void> =
 
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { ...project });
+      await updateDoc(docRef, sanitizeForFirestore({ ...project }));
     } else {
       console.error("Project not found to update:", project.project_id);
     }
@@ -272,7 +285,7 @@ export const getPublicationsFromDB = async (user?: User | null, userProjects?: P
 
 export const addPublicationToDB = async (pub: PublicationOutput): Promise<void> => {
   try {
-    await addDoc(collection(db, PUBLICATIONS_COL), pub);
+    await addDoc(collection(db, PUBLICATIONS_COL), sanitizeForFirestore(pub));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, PUBLICATIONS_COL);
     throw error;
@@ -286,7 +299,7 @@ export const updatePublicationInDB = async (pub: PublicationOutput): Promise<voi
 
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { ...pub });
+      await updateDoc(docRef, sanitizeForFirestore({ ...pub }));
     } else {
       console.error("Publication not found to update:", pub.output_id);
     }
@@ -334,7 +347,7 @@ export const getUtilizationsFromDB = async (user?: User | null, userProjects?: P
 
 export const addUtilizationToDB = async (util: Utilization): Promise<void> => {
   try {
-    await addDoc(collection(db, UTILIZATIONS_COL), util);
+    await addDoc(collection(db, UTILIZATIONS_COL), sanitizeForFirestore(util));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, UTILIZATIONS_COL);
     throw error;
@@ -348,7 +361,7 @@ export const updateUtilizationInDB = async (util: Utilization): Promise<void> =>
 
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { ...util });
+      await updateDoc(docRef, sanitizeForFirestore({ ...util }));
     } else {
       console.error("Utilization not found to update:", util.id);
     }
@@ -392,7 +405,7 @@ export const getPersonnelFromDB = async (user?: User | null): Promise<PersonnelD
 
 export const addPersonnelToDB = async (personnel: PersonnelDevelopment): Promise<void> => {
   try {
-    await addDoc(collection(db, PERSONNEL_COL), personnel);
+    await addDoc(collection(db, PERSONNEL_COL), sanitizeForFirestore(personnel));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, PERSONNEL_COL);
     throw error;
@@ -406,7 +419,7 @@ export const updatePersonnelInDB = async (personnel: PersonnelDevelopment): Prom
 
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { ...personnel });
+      await updateDoc(docRef, sanitizeForFirestore({ ...personnel }));
     } else {
       console.error("Personnel record not found to update:", personnel.id);
     }
@@ -448,7 +461,7 @@ export const getMOUsFromDB = async (user?: User | null): Promise<MOU[]> => {
 
 export const addMOUToDB = async (mou: MOU): Promise<void> => {
   try {
-    await addDoc(collection(db, MOUS_COL), mou);
+    await addDoc(collection(db, MOUS_COL), sanitizeForFirestore(mou));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, MOUS_COL);
     throw error;
@@ -461,7 +474,7 @@ export const updateMOUInDB = async (mou: MOU): Promise<void> => {
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const docRef = doc(db, MOUS_COL, querySnapshot.docs[0].id);
-      await updateDoc(docRef, { ...mou });
+      await updateDoc(docRef, sanitizeForFirestore({ ...mou }));
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, MOUS_COL);
@@ -501,7 +514,7 @@ export const getIPsFromDB = async (user?: User | null): Promise<IntellectualProp
 
 export const addIPToDB = async (ip: IntellectualProperty): Promise<void> => {
   try {
-    await addDoc(collection(db, IPS_COL), ip);
+    await addDoc(collection(db, IPS_COL), sanitizeForFirestore(ip));
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, IPS_COL);
     throw error;
@@ -514,7 +527,7 @@ export const updateIPInDB = async (ip: IntellectualProperty): Promise<void> => {
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const docRef = doc(db, IPS_COL, querySnapshot.docs[0].id);
-      await updateDoc(docRef, { ...ip });
+      await updateDoc(docRef, sanitizeForFirestore({ ...ip }));
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, IPS_COL);
@@ -550,6 +563,20 @@ export const getUsersFromDB = async (): Promise<User[]> => {
 };
 
 // New Helper for efficient single user lookup
+export const getUserById = async (uid: string): Promise<User | null> => {
+  try {
+    const docRef = doc(db, USERS_COL, uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as User;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, USERS_COL);
+    return null;
+  }
+};
+
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   try {
     let q = query(collection(db, USERS_COL), where("email", "==", email), limit(1));
@@ -606,7 +633,7 @@ export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
     };
 
     // Use setDoc instead of addDoc so the document ID matches the Auth UID
-    await setDoc(doc(db, USERS_COL, newUser.id), newUser);
+    await setDoc(doc(db, USERS_COL, newUser.id), sanitizeForFirestore(newUser));
   } catch (error: any) {
     if (error.code === 'auth/email-already-in-use') {
       throw new Error("Email already in use");
@@ -622,57 +649,89 @@ export const addUserToDB = async (user: User, actor?: User): Promise<void> => {
 };
 
 export const updateUserInDB = async (user: User, actor?: User): Promise<void> => {
-  let querySnapshot;
   try {
-    const q = query(collection(db, USERS_COL), where("id", "==", user.id), limit(1));
-    querySnapshot = await getDocs(q);
+    let docRef = doc(db, USERS_COL, user.id);
+    let docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      // Fallback for legacy users where document ID != user.id
+      const q = query(collection(db, USERS_COL), where("id", "==", user.id), limit(1));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        docRef = querySnapshot.docs[0].ref;
+        docSnap = await getDoc(docRef);
+      }
+    }
+
+    if (docSnap && docSnap.exists()) {
+      await updateDoc(docRef, sanitizeForFirestore(user));
+      if (actor) {
+        await logUserActivity(actor, 'UPDATE', 'User', `Updated user: ${user.username}`);
+      }
+    } else {
+      console.error("User not found to update:", user.id);
+      throw new Error(`User not found to update: ${user.id}`);
+    }
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, USERS_COL);
-    return;
+    handleFirestoreError(error, OperationType.UPDATE, USERS_COL);
   }
+};
 
-  if (!querySnapshot.empty) {
-    const docRef = querySnapshot.docs[0].ref;
-    try {
-      await updateDoc(docRef, { ...user });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, USERS_COL);
-      return;
+export const clearAllUsersExceptCurrent = async (currentUserId: string, actor?: User): Promise<{deleted: number, kept: number}> => {
+  try {
+    const snapshot = await getDocs(collection(db, USERS_COL));
+    let deletedCount = 0;
+    let keptCount = 0;
+
+    for (const document of snapshot.docs) {
+      const data = document.data() as User;
+      if (data.id === currentUserId || document.id === currentUserId) {
+        keptCount++;
+      } else {
+        await deleteDoc(doc(db, USERS_COL, document.id));
+        deletedCount++;
+      }
     }
 
-    // Log the update
     if (actor) {
-      await logUserActivity(actor, 'UPDATE', 'User', `Updated user: ${user.username}`);
+      await logUserActivity(actor, 'DELETE', 'User', `Cleared ${deletedCount} users from the system.`);
     }
-  } else {
-    console.error("User not found to update:", user.id);
+
+    return { deleted: deletedCount, kept: keptCount };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, USERS_COL);
+    return { deleted: 0, kept: 0 };
   }
 };
 
 export const deleteUserFromDB = async (id: string, actor?: User): Promise<void> => {
-    let querySnapshot;
     try {
-        const q = query(collection(db, USERS_COL), where("id", "==", id), limit(1));
-        querySnapshot = await getDocs(q);
-    } catch (error) {
-        handleFirestoreError(error, OperationType.GET, USERS_COL);
-        return;
-    }
+        let docRef = doc(db, USERS_COL, id);
+        let docSnap = await getDoc(docRef);
+        
+        if (!docSnap.exists()) {
+            const q = query(collection(db, USERS_COL), where("id", "==", id), limit(1));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                docRef = querySnapshot.docs[0].ref;
+                docSnap = await getDoc(docRef);
+            }
+        }
 
-    if (!querySnapshot.empty) {
-        const userToDelete = querySnapshot.docs[0].data() as User;
-        const docRef = querySnapshot.docs[0].ref;
-        try {
+        if (docSnap && docSnap.exists()) {
+            const userToDelete = docSnap.data() as User;
             await deleteDoc(docRef);
-        } catch (error) {
-            handleFirestoreError(error, OperationType.DELETE, USERS_COL);
-            return;
+            
+            // Log the deletion
+            if (actor) {
+              await logUserActivity(actor, 'DELETE', 'User', `Deleted user: ${userToDelete.username}`);
+            }
+        } else {
+            console.error("User not found to delete:", id);
+            throw new Error(`User not found to delete: ${id}`);
         }
-
-        // Log the deletion
-        if (actor) {
-          await logUserActivity(actor, 'DELETE', 'User', `Deleted user: ${userToDelete.username}`);
-        }
+    } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, USERS_COL);
     }
 }
 
@@ -688,7 +747,7 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
     const firebaseUser = userCredential.user;
 
     // Fetch User Profile from Firestore
-    let userProfile = await getUserByEmail(firebaseUser.email!);
+    let userProfile = await getUserById(firebaseUser.uid);
 
     if (userProfile) {
        await logUserActivity(userProfile, 'LOGIN', 'System', 'User logged in via Firebase Auth');
@@ -699,38 +758,6 @@ export const loginWithFirebase = async (identifier: string, pass: string): Promi
        return null;
     }
   } catch (error: any) {
-    // If Auth fails, check if it's an initial user that needs to be migrated
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
-      const mockUser = initialUsers.find(u => (u.username === identifier || u.email === identifier || u.authEmail === identifier) && u.password === pass);
-      
-      if (mockUser) {
-        console.log("Migrating initial user to Firebase Auth...");
-        try {
-          // Create user in Firebase Auth
-          const mockEmail = mockUser.email || `${mockUser.username}@tnsu.local`;
-          const newUserCredential = await createUserWithEmailAndPassword(auth, mockEmail, pass);
-          
-          const newUser = {
-            ...mockUser,
-            id: newUserCredential.user.uid,
-            authEmail: mockEmail
-          };
-          
-          // Save to Firestore
-          await setDoc(doc(db, USERS_COL, newUser.id), newUser);
-          
-          await logUserActivity(newUser, 'LOGIN', 'System', 'User auto-migrated and logged in');
-          return newUser;
-        } catch (migrationError: any) {
-          if (migrationError.code === 'auth/email-already-in-use') {
-            throw new Error("Invalid username or password");
-          }
-          console.error("Failed to migrate initial user:", migrationError);
-          throw new Error("Failed to initialize user account.");
-        }
-      }
-    }
-
     if (error.code === 'auth/too-many-requests') {
       throw new Error("Too many failed login attempts. Please try again later.");
     }
@@ -865,9 +892,9 @@ export const saveFacultyStatsToDB = async (stats: FacultyLecturerCount): Promise
 
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { ...stats });
+      await updateDoc(docRef, sanitizeForFirestore({ ...stats }));
     } else {
-      await addDoc(collection(db, FACULTY_STATS_COL), stats);
+      await addDoc(collection(db, FACULTY_STATS_COL), sanitizeForFirestore(stats));
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, FACULTY_STATS_COL);
@@ -883,73 +910,39 @@ export const seedDatabase = async (
   utilizations: Utilization[] = [],
   personnel: PersonnelDevelopment[] = [],
   mous: MOU[] = [],
-  ips: IntellectualProperty[] = [],
-  users: User[] = []
+  ips: IntellectualProperty[] = []
 ): Promise<void> => {
   try {
     const promises = [];
     
     // Add Projects
     for (const p of projects) {
-      promises.push(addDoc(collection(db, PROJECTS_COL), p));
+      promises.push(addDoc(collection(db, PROJECTS_COL), sanitizeForFirestore(p)));
     }
     
     // Add Publications
     for (const pub of publications) {
-      promises.push(addDoc(collection(db, PUBLICATIONS_COL), pub));
+      promises.push(addDoc(collection(db, PUBLICATIONS_COL), sanitizeForFirestore(pub)));
     }
 
     // Add Utilizations
     for (const ut of utilizations) {
-      promises.push(addDoc(collection(db, UTILIZATIONS_COL), ut));
+      promises.push(addDoc(collection(db, UTILIZATIONS_COL), sanitizeForFirestore(ut)));
     }
     
     // Add Personnel
     for (const pd of personnel) {
-      promises.push(addDoc(collection(db, PERSONNEL_COL), pd));
+      promises.push(addDoc(collection(db, PERSONNEL_COL), sanitizeForFirestore(pd)));
     }
 
     // Add MOUs
     for (const m of mous) {
-      promises.push(addDoc(collection(db, MOUS_COL), m));
+      promises.push(addDoc(collection(db, MOUS_COL), sanitizeForFirestore(m)));
     }
 
     // Add IPs
     for (const ip of ips) {
-      promises.push(addDoc(collection(db, IPS_COL), ip));
-    }
-
-    // Add Users (Check existence first to avoid duplicates during seed)
-    for (const u of users) {
-       const q = query(collection(db, USERS_COL), where("username", "==", u.username));
-       const snapshot = await getDocs(q);
-       if (snapshot.empty) {
-         // Create Firebase Auth account
-         const email = u.email || `${u.username}@tnsu.local`;
-         if (!u.password) {
-           console.warn(`Skipping user ${u.username} during seed: missing password`);
-           continue;
-         }
-         try {
-           const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, u.password);
-           await signOut(secondaryAuth);
-           const newUser = {
-             ...u,
-             id: userCredential.user.uid,
-             authEmail: email
-           };
-           promises.push(setDoc(doc(db, USERS_COL, newUser.id), newUser));
-         } catch (authError: any) {
-           if (authError.code === 'auth/email-already-in-use') {
-             console.warn(`Auth user ${email} already exists, skipping creation.`);
-             // Still add to Firestore if missing
-             const newUser = { ...u, authEmail: email };
-             promises.push(addDoc(collection(db, USERS_COL), newUser));
-           } else {
-             console.error(`Failed to create auth user ${email}:`, authError);
-           }
-         }
-       }
+      promises.push(addDoc(collection(db, IPS_COL), sanitizeForFirestore(ip)));
     }
 
     await Promise.all(promises);

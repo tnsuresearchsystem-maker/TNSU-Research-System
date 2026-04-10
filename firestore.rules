@@ -9,9 +9,6 @@ service cloud.firestore {
     }
     
     // Helper function to check if user is an admin
-    // Note: In a real app, you'd want to check custom claims or a user document.
-    // For this app, we'll allow authenticated users to perform most actions,
-    // but you can restrict this further based on your needs.
     function isAdmin() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -19,6 +16,8 @@ service cloud.firestore {
     }
 
     // Allow all authenticated users to read and write core data
+    // In a production app, you might want to restrict write access to specific fields
+    // or only allow users to write to their own campus's data.
     match /projects/{document=**} {
       allow read, write: if isAuthenticated();
     }
@@ -44,20 +43,25 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Only authenticated users can read user data
-      allow read: if isAuthenticated();
-      // Allow authenticated users to create their profile (needed for initial login migration)
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Only Admin or the user themselves can read their user data
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+      // Only Admin can create users (or user themselves during migration, but we removed that need)
+      allow create: if isAuthenticated() && (isAdmin() || request.auth.uid == userId);
+      // Only Admin or the user themselves can update their profile
+      // Note: A stricter rule would prevent users from changing their own role to 'Admin'
+      allow update: if isAuthenticated() && (isAdmin() || (request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.organization.id == resource.data.organization.id));
+      // Only Admin can delete users
       allow delete: if isAdmin();
     }
 
     // System Logs collection
     match /system_logs/{logId} {
       // Admins can read logs
-      allow read: if isAuthenticated();
+      allow read: if isAdmin();
       // Any authenticated user can write logs (to record their actions)
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Logs should be immutable
+      allow update, delete: if false;
     }
   }
 }

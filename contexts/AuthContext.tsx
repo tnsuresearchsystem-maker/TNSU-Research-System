@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, Organization } from '../types';
-import { loginWithFirebase, logoutUser, getUserByEmail } from '../services/dbService';
+import { loginWithFirebase, logoutUser, getUserById } from '../services/dbService';
 import { auth } from '../firebaseConfig';
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -24,9 +24,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser && firebaseUser.email) {
         // User is signed in, fetch their profile from Firestore
-        // Use optimized query that targets specific email to avoid "missing permissions" on full list
+        // Use optimized query that targets specific uid to avoid "missing permissions" on full list
         try {
-           const userProfile = await getUserByEmail(firebaseUser.email);
+           const userProfile = await getUserById(firebaseUser.uid);
            if (userProfile) {
              setUser(userProfile);
            } else {

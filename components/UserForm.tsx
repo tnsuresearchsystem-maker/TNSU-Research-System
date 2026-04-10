@@ -43,9 +43,9 @@ const UserForm: React.FC<UserFormProps> = ({ onSave, onCancel, initialData }) =>
       password: formData.password || (initialData ? initialData.password : 'password123'), // Keep old password if editing and not changed, default for new
       organization: org,
       mustChangePassword: formData.mustChangePassword !== undefined ? formData.mustChangePassword : true, // Default to true for new users
-      fullName: formData.fullName,
-      caretaker: formData.caretaker,
-      phoneNumber: formData.phoneNumber
+      fullName: formData.fullName || undefined,
+      caretaker: formData.caretaker || undefined,
+      phoneNumber: formData.phoneNumber || undefined
     };
 
     onSave(userToSave);

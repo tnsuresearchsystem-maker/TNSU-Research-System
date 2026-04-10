@@ -10,7 +10,7 @@ export const initialProjects: ProjectMaster[] = [
   {
     project_id: "p_001",
     funding_fiscal_year: FiscalYear.Y2566,
-    campus_id: "Chiang Mai",
+    campus_id: "Chiang Mai Campus",
     project_name: "การวิเคราะห์ทางชีวกลศาสตร์ของการเสิร์ฟตะกร้อ",
     project_name_en: "Biomechanics of Sepak Takraw Serve",
     head_researcher: "Dr. Somchai Jai-dee",
@@ -23,7 +23,7 @@ export const initialProjects: ProjectMaster[] = [
   {
     project_id: "p_002",
     funding_fiscal_year: FiscalYear.Y2566,
-    campus_id: "Bangkok",
+    campus_id: "Bangkok Campus",
     project_name: "การใช้ AI วิเคราะห์สมรรถภาพทางกีฬา",
     project_name_en: "AI in Sports Performance Analysis",
     head_researcher: "Prof. Wilai Srisuk",
@@ -36,7 +36,7 @@ export const initialProjects: ProjectMaster[] = [
   {
     project_id: "p_003",
     funding_fiscal_year: FiscalYear.Y2567,
-    campus_id: "Chonburi",
+    campus_id: "Chonburi Campus",
     project_name: "โภชนาการสำหรับนักว่ายน้ำเยาวชน",
     project_name_en: "Nutrition Strategies for Youth Swimmers",
     head_researcher: "Dr. Arthit Sun",
@@ -49,7 +49,7 @@ export const initialProjects: ProjectMaster[] = [
   {
     project_id: "p_004",
     funding_fiscal_year: FiscalYear.Y2568,
-    campus_id: "Yala",
+    campus_id: "Yala Campus",
     project_name: "โครงการออกกำลังกายชุมชนเพื่อผู้สูงอายุ",
     project_name_en: "Community Exercise Programs for Elderly",
     head_researcher: "Ms. Ratana Ploy",
@@ -148,6 +148,7 @@ export const initialMOUs: MOU[] = [
     sign_date: "2024-01-15",
     scope: "Collaboration on elite athlete training programs.",
     fiscal_year: FiscalYear.Y2567,
+    campus_id: "Bangkok Campus",
     approval_status: ApprovalStatus.Approved
   }
 ];
@@ -160,6 +161,7 @@ export const initialIPs: IntellectualProperty[] = [
     request_number: "2401000123",
     registration_date: "2025-02-10",
     fiscal_year: FiscalYear.Y2568,
+    campus_id: "Chiang Mai Campus",
     approval_status: ApprovalStatus.Approved
   }
 ];
